@@ -1,0 +1,55 @@
+type Query {
+  pokemonSpecies: PokemonSpecies
+  allPokemon(ids: [String!]): [PokemonSpecies!]!
+}
+
+type PokemonSpecies {
+  _id: ID!
+  name: String!
+  teamBuilderSprite: String!
+  battleSprite: String!
+  menuSprite: String!
+  abilities: [Ability!]!
+  learnableMoves: [Move!]!
+  baseStats: Stats!
+}
+
+type Ability {
+  _id: ID!
+  name: String!
+  effects: Effects
+  description: String!
+  animation: String!
+}
+
+type Effects {
+  someEffect: String
+}
+
+type Move {
+  _id: ID!
+  name: String!
+  description: String!
+  type: String!
+  basePower: Int!
+  accuracy: Int
+  category: String!
+  contact: Boolean!
+  pp: PP!
+  effects: [Effects!]!
+  animation: String!
+}
+
+type PP {
+  base: Int!
+  max: Int!
+}
+
+type Stats {
+  hp: Int!
+  attack: Int!
+  defense: Int!
+  specialAttack: Int!
+  specialDefense: Int!
+  speed: Int!
+}
