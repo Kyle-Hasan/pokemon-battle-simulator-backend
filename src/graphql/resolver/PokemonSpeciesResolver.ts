@@ -1,8 +1,8 @@
 import { Resolver, Query, Arg, Int, Info } from "type-graphql";
-import { PokemonSpecies } from "../types/PokemonSpecies";
+
 import graphqlFields from "graphql-fields";
 import { GraphQLResolveInfo } from "graphql";
-import { PokemonSpeciesModel } from "../../models/PokemonSpecies";
+import { PokemonSpecies, PokemonSpeciesModel } from "../../models/PokemonSpecies";
 import { PokemonSpeciesService } from "../../database/PokemonSpeciesService";
 
 @Resolver(() => PokemonSpecies)

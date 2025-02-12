@@ -1,8 +1,10 @@
 
 
+import { Types } from "mongoose";
 import { Pokemon } from "../models/Pokemon";
 import { Team, TeamModel } from "../models/Team"
 import { UserModel } from "../models/User";
+import { error } from "console";
 
 export class TeamService {
     async blankTeam(userId:string):Promise<Team> {
@@ -29,7 +31,12 @@ export class TeamService {
         if(!team || team.pokemon && team?.pokemon?.length >= 6) {
             throw new Error("teams can only have 6 pokemon")
         }
-        team?.pokemon?.push(pokemon as Pokemon)
+        
+      
+        team?.pokemon?.push({
+            nickname: pokemon.nickname,
+            pokemonSpecies: pokemon.pokemonSpecies ? pokemon.pokemonSpecies : "", // Convert to ObjectId
+          });
 
         await team.save()
 
@@ -52,7 +59,7 @@ export class TeamService {
         team.pokemon = pokemon
         await team?.save()
 
-        return team
+        return team.toObject()
 
     }
 
@@ -69,8 +76,26 @@ export class TeamService {
         team.pokemon[oldPokemonIndex] = newPokemon as Pokemon
         await team?.save()
 
-        return team
+        return team.toObject()
 
+    }
+
+    async deleteTeam(teamId:string) {
+        await TeamModel.deleteOne({_id:teamId})
+    }
+
+    async editTeam(team:Partial<Team>):Promise<Team | null> {
+        const updatedTeam = await TeamModel.findOneAndUpdate(
+            { _id: team._id },
+            { $set: { name: team.name } },
+            {new:true,runValidators:true}
+           
+          );
+          
+        if(!updatedTeam) {
+            throw new Error("no team exists")
+        }
+        return updatedTeam?.toObject()
     }
 
     

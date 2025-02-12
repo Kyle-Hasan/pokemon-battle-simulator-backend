@@ -17,6 +17,8 @@ import dotenv from 'dotenv';
 import { writeFileSync } from "fs";
 import { printSchema } from "graphql";
 import { addPokemon } from "./seed";
+import { TeamResolver } from "./graphql/resolver/TeamResolver";
+import { PokemonResolver } from "./graphql/resolver/PokemonResolver";
 
 
 
@@ -35,7 +37,7 @@ async function bootstrap() {
   const httpServer = http.createServer(app);
 
   const schema = await buildSchema({
-    resolvers: [PokemonSpeciesResolver],
+    resolvers: [PokemonSpeciesResolver,TeamResolver,PokemonResolver],
   });
 
  
