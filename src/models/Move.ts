@@ -2,6 +2,7 @@ import { getModelForClass, prop } from '@typegoose/typegoose';
 import { PP } from './PP';
 import { Field, ID, Int, ObjectType } from 'type-graphql';
 import { Types } from 'mongoose';
+import { PokemonType } from '../enums/PokemonType';
 
 
 @ObjectType()
@@ -21,8 +22,8 @@ export class Move {
 
 
   @Field(()=> String, {nullable:false})
-  @prop()
-  public type?: string;
+  @prop({ required: true, enum: PokemonType, type: String }) 
+  public type?: PokemonType;
 
   @Field(()=> String, {nullable:false})
   @prop()

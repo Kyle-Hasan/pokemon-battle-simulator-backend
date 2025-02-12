@@ -6,6 +6,7 @@ import { Stats } from './Stats';
 import { Effects } from './Effect';
 import { Schema, Types } from 'mongoose';
 import { Field, ID, ObjectType } from 'type-graphql';
+import { PokemonType } from '../enums/PokemonType';
 
 @ObjectType()
 export class PokemonSpecies {
@@ -44,6 +45,10 @@ export class PokemonSpecies {
   @Field(()=>[Stats])
   @prop({required:true})
   public stats !:Stats;
+
+  @Field(()=> [String], {nullable:false})
+  @prop({ required: true, enum: PokemonType, type: String}) 
+  public type?: PokemonType[];
 
 }
 
