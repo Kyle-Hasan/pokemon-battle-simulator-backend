@@ -46,7 +46,7 @@ export class TeamResolver {
 
     @Query(() => [Team]) 
     async getAllUserTeams(@Arg("userId") userId: string): Promise<Team[]> {
-      const teams = await this.userService.getAllUserTeams(userId);
+      const teams = (await this.userService.getAllUserTeams(userId)).filter(x=> x.name !== "" && x.pokemon && x.pokemon?.length > 0);
       return teams
     }
 

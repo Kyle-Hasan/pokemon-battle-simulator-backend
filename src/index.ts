@@ -34,6 +34,7 @@ async function bootstrap() {
 
   
   const app: Application = express();
+  app.use(cors());
   const httpServer = http.createServer(app);
 
   const schema = await buildSchema({
