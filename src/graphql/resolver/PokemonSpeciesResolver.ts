@@ -3,14 +3,15 @@ import { Resolver, Query, Arg, Int, Info } from "type-graphql";
 import graphqlFields from "graphql-fields";
 import { GraphQLResolveInfo } from "graphql";
 import { PokemonSpecies, PokemonSpeciesModel } from "../../models/PokemonSpecies";
-import { PokemonSpeciesService } from "../../database/PokemonSpeciesService";
+import { getAllPokemonAndMoves } from "../../database/PokemonSpeciesService";
+
 
 @Resolver(() => PokemonSpecies)
 export class PokemonSpeciesResolver {
-  pokemonSpeciesService: PokemonSpeciesService;
+
 
   constructor() {
-    this.pokemonSpeciesService = new PokemonSpeciesService();
+   
     
   }
 
@@ -50,7 +51,7 @@ export class PokemonSpeciesResolver {
 
     
 
-    const speciesList:PokemonSpecies[] | null = (await this.pokemonSpeciesService.getAllPokemonAndMoves({})) as PokemonSpecies[] | null; 
+    const speciesList:PokemonSpecies[] | null = (await getAllPokemonAndMoves({})) as PokemonSpecies[] | null; 
 
     if(!speciesList) {
       return []

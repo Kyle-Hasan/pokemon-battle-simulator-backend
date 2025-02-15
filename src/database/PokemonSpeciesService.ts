@@ -1,45 +1,74 @@
-import { ObjectId } from "mongoose";
+import { ObjectId, Types } from "mongoose";
 import { PokemonSpecies, PokemonSpeciesModel } from "../models/PokemonSpecies";
 
 
-export class PokemonSpeciesService {
 
-    async getPokemonAndMoves(id:ObjectId | string, filter:Record<string, number>): Promise<PokemonSpecies | null> {
-        const pokemonSpecies = await PokemonSpeciesModel.findById(id,filter).populate('learnableMoves').populate('abilities').exec()
-        
-        return pokemonSpecies
+
+export async function getPokemonAndMoves(id: ObjectId | string, filter: Record<string, number>): Promise<PokemonSpecies | null> {
+  // Convert id to ObjectId if it's a string
+  const objectId = typeof id === 'string' ? new Types.ObjectId(id) : id
+
+  // Fix: Use $match to filter by _id
+  const results = await PokemonSpeciesModel.aggregate([
+    {
+      $match: { _id: objectId }
+    },
+    {
+      $lookup: {
+        from: 'moves',
+        localField: 'learnableMoves',
+        foreignField: '_id',
+        as: 'learnableMoves'
+      }
+    },
+    {
+      $lookup: {
+        from: 'abilities',
+        localField: 'abilities',
+        foreignField: '_id',
+        as: 'abilities'
+      }
     }
+  ])
 
-    async getAllPokemonAndMoves(filter:Record<string, number>):Promise<any[] | null> {
+  console.log('pokemon species', results)
+
+  if (!results || results.length === 0) {
+    return null
+  }
+
+  // The aggregation returns plain objects, so no need to call .toObject()
+  return results[0]
+}
+
+export async function getAllPokemonAndMoves(filter: Record<string, number>): Promise<any[] | null> {
 
 
-        const pokemonSpeciesArr = await PokemonSpeciesModel.aggregate([
-            
-            {
-              $lookup: {
-                from: "moves",
-                localField: "learnableMoves",
-                foreignField: "_id",
-                as: "learnableMoves"
-              }
-            },
-            {
-              $lookup: {
-                from: "abilities",
-                localField: "abilities",
-                foreignField: "_id",
-                as: "abilities"
-              }
-            }
-          ])
+  const pokemonSpeciesArr = await PokemonSpeciesModel.aggregate([
 
-        .exec()
-        
-        
-        return pokemonSpeciesArr
-
+    {
+      $lookup: {
+        from: "moves",
+        localField: "learnableMoves",
+        foreignField: "_id",
+        as: "learnableMoves"
+      }
+    },
+    {
+      $lookup: {
+        from: "abilities",
+        localField: "abilities",
+        foreignField: "_id",
+        as: "abilities"
+      }
     }
+  ])
 
-    
+    .exec()
+
+
+  return pokemonSpeciesArr
 
 }
+
+

@@ -2,6 +2,7 @@ type Query {
   pokemonSpecies: PokemonSpecies
   allPokemon(ids: [String!]): [PokemonSpecies!]!
   getAllUserTeams(userId: String!): [Team!]!
+  getTeam(teamId: String!): Team!
 }
 
 type PokemonSpecies {
@@ -62,13 +63,15 @@ type Pokemon {
   _id: ID!
   nickname: String
   pokemonSpecies: PokemonSpecies!
+  moves: [Move!]
+  ability: Ability
 }
 
 type Mutation {
   blankTeam(userId: String!): Team!
-  addPokemon(pokemon: AddPokemonInput!, teamId: String!): Team!
+  addPokemon(pokemon: AddPokemonInput!, teamId: String!): Pokemon!
   deletePokemon(pokemonId: String!, teamId: String!): Team!
-  editPokemon(pokemon: AddPokemonInput!, pokemonId: String!, teamId: String!): Team!
+  editPokemon(pokemon: AddPokemonInput!, pokemonId: String!, teamId: String!): Pokemon!
   editTeam(team: AddTeamInput!): Team!
   deleteTeam(teamId: String!): Boolean!
 }
@@ -76,6 +79,8 @@ type Mutation {
 input AddPokemonInput {
   nickname: String
   pokemonSpecies: String!
+  moves: [String!]
+  ability: String
 }
 
 input AddTeamInput {

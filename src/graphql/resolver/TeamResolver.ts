@@ -7,14 +7,18 @@ import {AddPokemonInput, Pokemon} from "../../models/Pokemon"
 import mongoose, { ObjectId, Types } from "mongoose";
 
 import {AddTeamInput, Team} from '../../models/Team'
+import { GraphQLResolveInfo } from "graphql";
+import graphqlFields from "graphql-fields";
 @Resolver(()=>Team)
 export class TeamResolver {
     teamService: TeamService;
     userService: UserService;
 
+
     constructor(){
         this.teamService = new TeamService();
         this.userService = new UserService();
+
     }
 
     @Mutation(_returns => Team)
@@ -22,12 +26,14 @@ export class TeamResolver {
         return  await this.teamService.blankTeam(userId)
     }
 
-    @Mutation(_returns => Team)
+    @Mutation(_returns => Pokemon)
     async addPokemon( @Arg("teamId") teamId:string,  @Arg("pokemon", ()=>AddPokemonInput) pokemon:AddPokemonInput ) {
 
         pokemon.pokemonSpecies = new Types.ObjectId(pokemon.pokemonSpecies.toString());
         
-        return await this.teamService.addPokemon(pokemon, teamId)
+        const newPokemon =  await this.teamService.addPokemon(pokemon, teamId)
+       
+        return newPokemon
     }
 
     @Mutation(_returns => Team)
@@ -36,11 +42,11 @@ export class TeamResolver {
         return await this.teamService.deletePokemon(pokemonId,teamId)
     }
 
-    @Mutation(_returns => Team)
+    @Mutation(_returns => Pokemon)
     async editPokemon( @Arg("teamId") teamId:string,  @Arg("pokemonId") pokemonId:string, @Arg("pokemon", ()=>AddPokemonInput) pokemon:Partial<AddPokemonInput>) {
 
         
-        
+        console.log(" pokemon ",pokemon)
         return await this.teamService.editPokemon(pokemonId,pokemon,teamId)
     }
 
@@ -55,7 +61,7 @@ export class TeamResolver {
 
         
         const teamNew =  await this.teamService.editTeam(team)
-        console.log(teamNew)
+        
         return teamNew
     }
 
@@ -67,6 +73,14 @@ export class TeamResolver {
         return true
     }
 
+    @Query(() =>Team) 
+    async getTeam(
+        @Arg("teamId", () => String, { nullable: false }) id: string,
+        @Info() info: GraphQLResolveInfo
+      ): Promise<Team> {
+        const fields = graphqlFields(info);
+        return await this.teamService.getTeam(id)
+      }
    
 
 
