@@ -29,7 +29,7 @@ type Stats {
 
 type Move {
   _id: ID!
-  name: String!
+  name: String
   description: String!
   type: String!
   basePower: String!
@@ -47,7 +47,7 @@ type PP {
 
 type Ability {
   _id: ID!
-  name: String!
+  name: String
   description: String!
   animation: String!
   effects: String!
@@ -73,7 +73,7 @@ type Mutation {
   deletePokemon(pokemonId: String!, teamId: String!): Team!
   editPokemon(pokemon: AddPokemonInput!, pokemonId: String!, teamId: String!): Pokemon!
   editTeam(team: AddTeamInput!): Team!
-  deleteTeam(teamId: String!): Boolean!
+  deleteTeam(teamId: String!): String!
 }
 
 input AddPokemonInput {

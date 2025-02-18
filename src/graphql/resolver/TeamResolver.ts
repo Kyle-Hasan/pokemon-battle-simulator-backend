@@ -65,12 +65,12 @@ export class TeamResolver {
         return teamNew
     }
 
-    @Mutation(_returns => Boolean)
+    @Mutation(_returns => String)
     async deleteTeam( @Arg("teamId") teamId:string) {
         
 
         await this.teamService.deleteTeam(teamId)
-        return true
+        return teamId
     }
 
     @Query(() =>Team) 
@@ -79,7 +79,10 @@ export class TeamResolver {
         @Info() info: GraphQLResolveInfo
       ): Promise<Team> {
         const fields = graphqlFields(info);
-        return await this.teamService.getTeam(id)
+        
+        const team = await this.teamService.getTeam(id)
+        
+        return team
       }
    
 

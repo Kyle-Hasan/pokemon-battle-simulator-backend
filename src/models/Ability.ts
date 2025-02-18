@@ -8,9 +8,9 @@ export class Ability {
     @Field(()=> ID)
     public readonly _id?: Types.ObjectId | string;
 
-    @Field(()=> String, {nullable:false})
+    @Field(()=> String, {nullable:true})
     @prop({ required: true })
-    public name!: string;
+    public name?: string;
 
     @Field(()=> String, {nullable:false})
     @prop()
