@@ -8,7 +8,7 @@ export async function getPokemonAndMoves(id: ObjectId | string, filter: Record<s
   // Convert id to ObjectId if it's a string
   const objectId = typeof id === 'string' ? new Types.ObjectId(id) : id
 
-  // Fix: Use $match to filter by _id
+
   const results = await PokemonSpeciesModel.aggregate([
     {
       $match: { _id: objectId }
@@ -40,6 +40,8 @@ export async function getPokemonAndMoves(id: ObjectId | string, filter: Record<s
   // The aggregation returns plain objects, so no need to call .toObject()
   return results[0]
 }
+
+
 
 export async function getAllPokemonAndMoves(filter: Record<string, number>): Promise<any[] | null> {
 

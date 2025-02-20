@@ -10,6 +10,8 @@ import { rmSync } from "fs";
 import { Move } from "../models/Move";
 import { Ref } from "@typegoose/typegoose";
 import { Ability } from "../models/Ability";
+import { Stats } from "../models/Stats";
+import { getPokemonAndMoves } from "./PokemonSpeciesService";
 
 
 export class TeamService {
@@ -43,10 +45,28 @@ export class TeamService {
       throw new Error("teams can only have 6 pokemon")
     }
 
+   
+
+    const pokemonSpecies = await getPokemonAndMoves(pokemon.pokemonSpecies?.toString() || '',{})
+
+    const pokemonStats:Stats = new Stats()
+    
+    pokemonStats.hp = calculatePokemonStat(true,100,31,0,pokemonSpecies?.baseStats.hp || 0,"")
+    pokemonStats.attack= calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.attack || 0,"")
+    pokemonStats.defense = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.defense || 0,"")
+    pokemonStats.specialDefense = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.specialDefense || 0,"")
+    pokemonStats.specialAttack = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.specialAttack || 0,"")
+    pokemonStats.speed = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.speed || 0,"")
+
+    
+
 
     team?.pokemon?.push({
       nickname: pokemon.nickname,
+      level:100,
+      ability: pokemon.ability,
       pokemonSpecies: pokemon.pokemonSpecies ? pokemon.pokemonSpecies : "",
+      stats:pokemonStats,
       moves: []
     });
 
@@ -238,5 +258,86 @@ export class TeamService {
 
 
 
+
+}
+
+export async function getTeamWithAllPokemonInfo(id:string):Promise<any> {
+
+  const result = await TeamModel.aggregate([
+
+    { $match: { _id: new Types.ObjectId(id) } },
+
+    { $unwind: "$pokemon" },
+
+    {
+      $lookup: {
+        from: "moves",
+        localField: "pokemon.moves",
+        foreignField: "_id",
+        as: "pokemon.moves",
+      },
+    },
+    { $unwind: "$pokemon" },
+
+    {
+      $lookup: {
+        from: "abilities",
+        localField: "pokemon.ability",
+        foreignField: "_id",
+        as: "pokemon.ability",
+      },
+    },
+
+    {
+      $unwind: {
+        path: "$pokemon.ability",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    {
+      $lookup: {
+        from: "pokemonspecies",
+        localField: "pokemon.pokemonSpecies",
+        foreignField: "_id",
+        as: "pokemon.pokemonSpecies",
+      },
+    },
+    {
+      $unwind: {
+        path: "$pokemon.pokemonSpecies",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        pokemon: { $push: "$pokemon" },
+      },
+    },
+    
+  ]);
+  
+  if (!result || result.length === 0) {
+    throw new Error("team not found");
+  }
+  return result[0]
+}
+
+
+export function calculatePokemonStat(isHp:boolean,level:number,iv:number,ev:number,base:number, nature:string):number {
+
+  const evValue = Math.floor(ev/4)
+  const numerator = Math.floor((2*base+evValue)*level/100)
+
+  if(isHp) {
+
+    const statValue = numerator + level + 10
+    return statValue
+  }
+  else {
+    const statValue = (numerator+5) * 1    
+    return statValue
+  }
 
 }

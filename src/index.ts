@@ -19,7 +19,9 @@ import { printSchema } from "graphql";
 import { addPokemon } from "./seed";
 import { TeamResolver } from "./graphql/resolver/TeamResolver";
 import { PokemonResolver } from "./graphql/resolver/PokemonResolver";
-
+import { BattleResolver } from "./graphql/resolver/BattleResolver";
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/use/ws';
 
 
 
@@ -38,18 +40,45 @@ async function bootstrap() {
   const httpServer = http.createServer(app);
 
   const schema = await buildSchema({
-    resolvers: [PokemonSpeciesResolver,TeamResolver,PokemonResolver],
-  });
-
- 
-  const server = new ApolloServer<BaseContext>({
-    schema,
-    plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+    resolvers: [PokemonSpeciesResolver,TeamResolver,PokemonResolver,BattleResolver],
   });
 
  
 
-await server.start();
+  // Creating the WebSocket server
+const wsServer = new WebSocketServer({
+  // This is the `httpServer` we created in a previous step.
+  server: httpServer,
+  // Pass a different path here if app.use
+  // serves expressMiddleware at a different path
+  path: '/subscriptions',
+});
+
+const serverCleanup = useServer({ schema }, wsServer);
+
+
+const server = new ApolloServer({
+  schema,
+  plugins: [
+    // Proper shutdown for the HTTP server.
+    ApolloServerPluginDrainHttpServer({ httpServer }),
+
+    // Proper shutdown for the WebSocket server.
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          },
+        };
+      },
+    },
+  ],
+});
+
+ 
+
+  await server.start();
 // Use expressMiddleware to mount Apollo Server at the "/graphql" endpoint
 app.use(
   '/graphql',

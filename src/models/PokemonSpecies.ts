@@ -22,9 +22,13 @@ export class PokemonSpecies {
   @prop({ required: true, type: () => Stats })
   public baseStats!: Stats;
 
-  @Field(()=> String, {nullable:false})
+  @Field(()=> String, {nullable:true})
   @prop({ required: true })
-  public battleSprite!: string;
+  public battleBackSprite!: string;
+
+  @Field(()=> String, {nullable:true})
+  @prop({ required: true })
+  public battleFrontSprite!: string;
 
   @Field(()=> String, {nullable:false})
   @prop({ required: true })
@@ -42,9 +46,7 @@ export class PokemonSpecies {
   @prop({ ref: () => Ability, default: [] })
   public abilities!: Ref<Ability>[];
 
-  @Field(()=>[Stats])
-  @prop({required:true})
-  public stats !:Stats;
+  
 
   @Field(()=> [String], {nullable:false})
   @prop({ required: true, enum: PokemonType, type: String}) 

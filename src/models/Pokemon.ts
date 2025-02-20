@@ -2,9 +2,10 @@
 import { prop, getModelForClass, Ref, Prop } from '@typegoose/typegoose';
 import { PokemonSpecies } from './PokemonSpecies';
 import { Types } from 'mongoose';
-import { Field, ID, InputType, ObjectType } from 'type-graphql';
+import { Field, ID, InputType, Int, ObjectType } from 'type-graphql';
 import { Move } from './Move';
 import { Ability } from './Ability';
+import { Stats } from './Stats';
 
 @ObjectType()
 export class Pokemon {
@@ -17,6 +18,15 @@ export class Pokemon {
     @Field(()=> String, {nullable:true})
     @prop()
     public nickname?: string;
+
+
+    @Field(()=> Int)
+    @prop()
+    public level!: number;
+
+    @Field(()=> Stats, {nullable:true})
+    @prop()
+    public stats?: Stats;
 
     @Field(() => PokemonSpecies)
     @prop({ref: () => PokemonSpecies, required:true})
@@ -44,6 +54,9 @@ export class AddPokemonInput implements Partial<Pokemon> {
 
     @Field(() => [String], {nullable:true})
     public moves?: Ref<Move>[];
+
+    @Field(() => Int, {nullable:true})
+    public level!: number;
 
     @Field(() => String, {nullable:true})
     public ability?: Ref<Ability>;

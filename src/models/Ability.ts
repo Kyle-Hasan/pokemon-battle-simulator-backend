@@ -5,7 +5,7 @@ import { Types } from 'mongoose';
 @ObjectType()
 export class Ability {
 
-    @Field(()=> ID)
+    @Field(()=> ID, {nullable:true})
     public readonly _id?: Types.ObjectId | string;
 
     @Field(()=> String, {nullable:true})

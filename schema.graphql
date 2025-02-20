@@ -9,12 +9,12 @@ type PokemonSpecies {
   _id: ID!
   name: String!
   baseStats: Stats!
-  battleSprite: String!
+  battleBackSprite: String
+  battleFrontSprite: String
   menuSprite: String!
   teamBuilderSprite: String!
   learnableMoves: [Move!]!
   abilities: [Ability!]!
-  stats: [Stats!]!
   type: [String!]!
 }
 
@@ -46,7 +46,7 @@ type PP {
 }
 
 type Ability {
-  _id: ID!
+  _id: ID
   name: String
   description: String!
   animation: String!
@@ -62,6 +62,8 @@ type Team {
 type Pokemon {
   _id: ID!
   nickname: String
+  level: Int!
+  stats: Stats
   pokemonSpecies: PokemonSpecies!
   moves: [Move!]
   ability: Ability
@@ -74,12 +76,14 @@ type Mutation {
   editPokemon(pokemon: AddPokemonInput!, pokemonId: String!, teamId: String!): Pokemon!
   editTeam(team: AddTeamInput!): Team!
   deleteTeam(teamId: String!): String!
+  randomBattle: Battle!
 }
 
 input AddPokemonInput {
   nickname: String
   pokemonSpecies: String!
   moves: [String!]
+  level: Int
   ability: String
 }
 
@@ -87,4 +91,56 @@ input AddTeamInput {
   _id: String
   name: String
   pokemon: [AddPokemonInput!]
+}
+
+type Battle {
+  id: ID!
+  team1: [PokemonInBattle!]!
+  team2: [PokemonInBattle!]!
+  environment: Environment!
+}
+
+type PokemonInBattle {
+  pokemon: Pokemon!
+  status: Status
+  remainingHealth: Int!
+  isActive: Boolean!
+  statStages: Stats!
+}
+
+type Status {
+  burn: String
+}
+
+type Environment {
+  weather: WeatherEffect
+  terrain: TerrainEffect
+  hazards: HazardState
+  fieldEffects: FieldEffects
+}
+
+type WeatherEffect {
+  type: String!
+  duration: Int!
+}
+
+type TerrainEffect {
+  type: String!
+  duration: Int!
+}
+
+type HazardState {
+  spikes: Int!
+  toxicSpikes: Int!
+  stealthRock: Boolean!
+  stickyWeb: Boolean!
+}
+
+type FieldEffects {
+  trickRoom: Boolean!
+  gravity: Boolean!
+  tailwind: Int!
+  lightScreen: Int!
+  reflect: Int!
+  safeguard: Int!
 }

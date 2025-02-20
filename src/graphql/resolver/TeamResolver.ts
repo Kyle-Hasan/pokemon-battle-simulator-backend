@@ -28,7 +28,7 @@ export class TeamResolver {
 
     @Mutation(_returns => Pokemon)
     async addPokemon( @Arg("teamId") teamId:string,  @Arg("pokemon", ()=>AddPokemonInput) pokemon:AddPokemonInput ) {
-
+        
         pokemon.pokemonSpecies = new Types.ObjectId(pokemon.pokemonSpecies.toString());
         
         const newPokemon =  await this.teamService.addPokemon(pokemon, teamId)
