@@ -22,6 +22,8 @@ import { PokemonResolver } from "./graphql/resolver/PokemonResolver";
 import { BattleResolver } from "./graphql/resolver/BattleResolver";
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/use/ws';
+import { pubsub } from "./graphql/resolver/pubsub";
+
 
 
 
@@ -41,17 +43,19 @@ async function bootstrap() {
 
   const schema = await buildSchema({
     resolvers: [PokemonSpeciesResolver,TeamResolver,PokemonResolver,BattleResolver],
+    pubSub: pubsub
   });
 
  
-
+ 
   // Creating the WebSocket server
 const wsServer = new WebSocketServer({
   // This is the `httpServer` we created in a previous step.
   server: httpServer,
   // Pass a different path here if app.use
   // serves expressMiddleware at a different path
-  path: '/subscriptions',
+  path: '/graphql',
+ 
 });
 
 const serverCleanup = useServer({ schema }, wsServer);

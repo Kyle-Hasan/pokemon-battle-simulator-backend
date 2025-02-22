@@ -77,6 +77,7 @@ type Mutation {
   editTeam(team: AddTeamInput!): Team!
   deleteTeam(teamId: String!): String!
   randomBattle: Battle!
+  updateBattle: String!
 }
 
 input AddPokemonInput {
@@ -143,4 +144,24 @@ type FieldEffects {
   lightScreen: Int!
   reflect: Int!
   safeguard: Int!
+}
+
+type Subscription {
+  battleUpdate(battleId: String!): BattleUpdate!
+}
+
+type BattleUpdate {
+  battleId: ID!
+  changedAllyPokemon: [PokemonUpdate!]!
+  changedEnemyPokemon: [PokemonUpdate!]!
+  environment: Environment!
+}
+
+type PokemonUpdate {
+  id: ID!
+  remainingHp: Int
+  status: String
+  isActive: Boolean!
+  switchedOut: Boolean
+  switchedIn: Boolean
 }
