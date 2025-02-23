@@ -1,17 +1,17 @@
 import { Field, ID, ObjectType } from "type-graphql";
 import { Environment } from "./Environment";
-import { PokemonInBattle } from "./PokemonInBattle";
+import { BattleTeam } from "./BattleTeam";
 
 @ObjectType()
 export class Battle {
   @Field(() => ID)
   id!: string;
 
-  @Field(() => [PokemonInBattle])
-  team1!: PokemonInBattle[];
+  @Field(() => BattleTeam)
+  team1!: BattleTeam;
 
-  @Field(() => [PokemonInBattle])
-  team2!: PokemonInBattle[];
+  @Field(() => BattleTeam)
+  team2!: BattleTeam;
 
   @Field(() => Environment)
   environment!: Environment;

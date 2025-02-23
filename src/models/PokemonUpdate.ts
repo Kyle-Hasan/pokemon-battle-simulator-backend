@@ -1,15 +1,14 @@
 import { Field, ID, Int, ObjectType } from "type-graphql";
+import { Status } from "./Status";
 
 @ObjectType()
 export class PokemonUpdate {
-  @Field(() => ID)
-  id!: string;
-
+  
   @Field(() => Int, { nullable: true })
   remainingHp?: number;
 
-  @Field({ nullable: true })
-  status?: string;
+  @Field(() => Status, { nullable: true })
+  status?: Status;
 
   @Field()
   isActive!: boolean;

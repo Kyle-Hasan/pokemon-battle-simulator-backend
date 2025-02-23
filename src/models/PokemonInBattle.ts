@@ -20,7 +20,7 @@ export class PokemonInBattle {
     public status?: Status
 
     @Field(()=>Int)
-    public remainingHealth!:Number
+    public remainingHealth!:number
 
     @Field(()=>Boolean)
     public isActive !:boolean

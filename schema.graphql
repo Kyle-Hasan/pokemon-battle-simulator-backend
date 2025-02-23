@@ -77,7 +77,7 @@ type Mutation {
   editTeam(team: AddTeamInput!): Team!
   deleteTeam(teamId: String!): String!
   randomBattle: Battle!
-  updateBattle: String!
+  updateBattle(moveInput: MoveInput!): String!
 }
 
 input AddPokemonInput {
@@ -96,9 +96,13 @@ input AddTeamInput {
 
 type Battle {
   id: ID!
-  team1: [PokemonInBattle!]!
-  team2: [PokemonInBattle!]!
+  team1: BattleTeam!
+  team2: BattleTeam!
   environment: Environment!
+}
+
+type BattleTeam {
+  pokemonInBattle: [PokemonInBattle!]!
 }
 
 type PokemonInBattle {
@@ -110,7 +114,19 @@ type PokemonInBattle {
 }
 
 type Status {
-  burn: String
+  primary: PrimaryStatus!
+  confused: Boolean!
+}
+
+"""
+The primary condition of a Pokémon. Only one primary status can be active at a time.
+"""
+enum PrimaryStatus {
+  Normal
+  Sleep
+  Burn
+  Faint
+  None
 }
 
 type Environment {
@@ -146,22 +162,29 @@ type FieldEffects {
   safeguard: Int!
 }
 
-type Subscription {
-  battleUpdate(battleId: String!): BattleUpdate!
-}
-
-type BattleUpdate {
+input MoveInput {
   battleId: ID!
-  changedAllyPokemon: [PokemonUpdate!]!
-  changedEnemyPokemon: [PokemonUpdate!]!
-  environment: Environment!
+  userId: ID!
+  pokemonId: ID!
+  isMove: Boolean!
+  moveId: ID
+  switchPokemonId: ID
 }
 
-type PokemonUpdate {
-  id: ID!
-  remainingHp: Int
-  status: String
-  isActive: Boolean!
-  switchedOut: Boolean
-  switchedIn: Boolean
+type Subscription {
+  battleUpdate(battleId: String!): BattleUpdatePlayer!
+}
+
+type BattleUpdatePlayer {
+  battleId: ID!
+  changedAllyPokemon: [PokemonInBattle!]!
+  changedEnemyPokemon: [PokemonInBattle!]!
+  environment: Environment!
+  movedFirst: Boolean!
+  allyFreeSwitch: Boolean!
+  enemyFreeSwitch: Boolean!
+  allyDamage: Float
+  enemyDamage: Float
+  allyMoveUsed: Move
+  enemyMoveUsed: Move
 }

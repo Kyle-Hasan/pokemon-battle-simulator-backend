@@ -1,5 +1,5 @@
 import { createPubSub } from "@graphql-yoga/subscription";
-import { BattleUpdate } from "../../models/BattleUpdate";
+import { BattleUpdate, BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
 
 
 export const enum Topic {
@@ -11,5 +11,5 @@ export const pubsub = createPubSub<
   {
     [Topic.BATTLE_UPDATE]: [BattleUpdate];
    
-  } // Fallback for dynamic topics
+  } 
 >();

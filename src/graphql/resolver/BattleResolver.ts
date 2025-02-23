@@ -2,10 +2,11 @@ import { Arg, Ctx, Mutation, Resolver, Root, SubscribeResolverData, Subscription
 import { Battle } from "../../models/Battle";
 import { BattleService } from "../../database/BattleService";
 import { withFilter } from "graphql-subscriptions";
-import { BattleUpdate } from "../../models/BattleUpdate";
+import { BattleUpdate, BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
 import { pubsub, Topic } from "./pubsub";
 import { Environment } from "../../models/Environment";
 import { Pokemon } from "../../models/Pokemon";
+import { MoveInput } from "../../models/MoveInput";
 
 
 
@@ -25,7 +26,6 @@ export class BattleResolver {
     
 
         const battle = await this.battleService.newBattle()
-        pubsub.publish(Topic.BATTLE_UPDATE, { battleId: battle.id, changedAllyPokemon: [], changedEnemyPokemon: [], environment: battle.environment })
         return battle
 
 
@@ -33,29 +33,44 @@ export class BattleResolver {
 
 
     @Mutation(_returns => String)
-    async updateBattle() {
+    async updateBattle(@Arg("moveInput") moveInput:MoveInput) {
         const battle = { battleId: "1", changedAllyPokemon: [], changedEnemyPokemon: [], environment: "test" }
-        pubsub.publish(Topic.BATTLE_UPDATE, { battleId: "1", changedAllyPokemon: [], changedEnemyPokemon: [], environment:{}})
-        return "abcd"
+        debugger
+        this.battleService.updateBattle(moveInput)
+        return "received"
     }
 
 
      // Subscription that sends battle updates.
   // It uses a filter to only send updates for the specific battle a client is interested in.
   
-  @Subscription(() => BattleUpdate, {
+  @Subscription(() => BattleUpdatePlayer, {
     topics: Topic.BATTLE_UPDATE,
-    filter: ({ payload, args }: SubscriptionHandlerData<BattleUpdate>) => {
-      if (!payload) return false;  // 🔥 Prevents execution on first subscribe
+    filter: ({ payload, args }: SubscriptionHandlerData<BattleUpdatePlayer>) => {
+      if (!payload) return false;  
       return payload.battleId === args.battleId;
     }
   })
   battleUpdate(
     @Root() payload: BattleUpdate,
     @Arg("battleId") battleId: string
-  ): BattleUpdate {
+  ): BattleUpdatePlayer {
+
+
+    const battleUpdatePlayer = new BattleUpdatePlayer()
+    battleUpdatePlayer.battleId = payload.battleId
+    battleUpdatePlayer.changedAllyPokemon = payload.playerOneChangedPokemon.pokemonInBattle
+    battleUpdatePlayer.changedEnemyPokemon = payload.playerTwoChangedPokemon.pokemonInBattle
+    battleUpdatePlayer.environment = payload.environment
+    battleUpdatePlayer.movedFirst = payload.playerOneMovedFirst
+    battleUpdatePlayer.allyFreeSwitch = payload.playerOneFreeSwitch
+    battleUpdatePlayer.enemyFreeSwitch = payload.playerTwoFreeSwitch
+    battleUpdatePlayer.allyDamage = payload.playerOneDamage
+    battleUpdatePlayer.enemyDamage = payload.playerTwoDamage
+    battleUpdatePlayer.allyMoveUsed = payload.playerOneMoveUsed
+    battleUpdatePlayer.enemyMoveUsed = payload.playerTwoMoveUsed
     
-    return payload;
+    return battleUpdatePlayer
   }
 
 }
