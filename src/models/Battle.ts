@@ -13,6 +13,15 @@ export class Battle {
   @Field(() => BattleTeam)
   team2!: BattleTeam;
 
+
+  @Field(()=> Boolean)
+  team1FreeSwitch!: boolean;
+
+  @Field(()=> Boolean)
+  team2FreeSwitch!: boolean;
+
   @Field(() => Environment)
   environment!: Environment;
+
+
 }

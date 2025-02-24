@@ -8,8 +8,8 @@ export class MoveInput {
   @Field(() => ID)
   userId!: string;
 
-  @Field(() => ID)
-  pokemonId!: string;
+  @Field(() => ID, { nullable: true })
+  pokemonId?: string;
 
   @Field()
   isMove!: boolean;

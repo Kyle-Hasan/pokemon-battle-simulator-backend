@@ -43,6 +43,12 @@ export class BattleUpdatePlayer {
   @Field(()=>Move, {nullable: true})
   enemyMoveUsed!: Move | null;
 
+  @Field(()=> Boolean, {nullable: true})
+  playerLost!: boolean | null;
+
+  @Field(()=> Boolean, {nullable: true})
+  enemyLost!: boolean | null;
+
 
   
   
@@ -62,6 +68,7 @@ export class BattleUpdate {
   playerTwoMoveUsed!: Move | null;
   playerOneDamage?: number;
   playerTwoDamage?: number;
-  
+  playerOneLoss?: boolean;
+  playerTwoLoss?: boolean;
 
 }

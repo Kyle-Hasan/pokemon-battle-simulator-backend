@@ -69,7 +69,10 @@ export class BattleResolver {
     battleUpdatePlayer.enemyDamage = payload.playerTwoDamage
     battleUpdatePlayer.allyMoveUsed = payload.playerOneMoveUsed
     battleUpdatePlayer.enemyMoveUsed = payload.playerTwoMoveUsed
+    battleUpdatePlayer.playerLost = payload.playerOneLoss ?? null
+    battleUpdatePlayer.enemyLost = payload.playerTwoLoss ?? null
     
+
     return battleUpdatePlayer
   }
 

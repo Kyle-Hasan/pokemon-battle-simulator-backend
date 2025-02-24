@@ -25,8 +25,9 @@ interface switchResult {
     playerTwoActivePokemon: PokemonInBattle
     otherChangedPokemonPlayerOne: PokemonInBattle[]
     otherChangedPokemonPlayerTwo: PokemonInBattle[]
-    playerOneSwitchedOut: boolean
-    playerTwoSwitchedOut: boolean
+    playerOneSwitched: boolean
+    playerTwoSwitched: boolean
+   
 }
 
 export class BattleService {
@@ -45,18 +46,141 @@ export class BattleService {
             throw new Error("Battle not found")
         }
 
+        let battle = battleObj.battle
+
+
         if (moveInput.userId === battleObj.battle.team1.userId) {
             battleObj.player1Move = moveInput
         } else {
             battleObj.player2Move = moveInput
         }
 
+        if(battle.team1FreeSwitch && !battle.team2FreeSwitch) {
+            battle.team1FreeSwitch = false
+
+            if(battleObj.player1Move) {
+                const pokemonToSwitch = battle.team1.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player1Move?.switchPokemonId)
+                if(!pokemonToSwitch) {
+                    throw new Error("Pokemon not found")
+                }
+
+                pokemonToSwitch.isActive = true
+                pokemonToSwitch.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
+                const switchResult:switchResult = {
+                    playerOneMovedFirst: false,
+                    playerOneActivePokemon: pokemonToSwitch,
+                    playerTwoActivePokemon: battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId) as PokemonInBattle,
+                    otherChangedPokemonPlayerOne: [],
+                    otherChangedPokemonPlayerTwo: [],
+                    playerOneSwitched: true,
+                    playerTwoSwitched: false
+                }
+
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                battleObj.player1Move = null
+                battleObj.player2Move = null
+                return
+            }
+
+            else if(battleObj.player2Move) {
+                throw new Error("Invalid move")
+            }
+
+        }
+
+        if(!battle.team1FreeSwitch && battle.team2FreeSwitch) {
+            battle.team2FreeSwitch = false
+
+            if(battleObj.player2Move) {
+                const pokemonToSwitch = battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId)
+                if(!pokemonToSwitch) {
+                    throw new Error("Pokemon not found")
+                }
+
+                pokemonToSwitch.isActive = true
+                pokemonToSwitch.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
+                const switchResult:switchResult = {
+                    playerOneMovedFirst: false,
+                    playerOneActivePokemon: pokemonToSwitch,
+                    playerTwoActivePokemon: battle.team2.pokemonInBattle[0],
+                    otherChangedPokemonPlayerOne: [],
+                    otherChangedPokemonPlayerTwo: [],
+                    playerOneSwitched: false,
+                    playerTwoSwitched: true
+
+                }
+
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                battleObj.player1Move = null
+                battleObj.player2Move = null
+                return
+            }
+
+            else if(battleObj.player1Move) {
+                throw new Error("Invalid move")
+            }
+        }
+
+        if(battle.team1FreeSwitch && battle.team2FreeSwitch) {
+
+        
+
+            if(battleObj.player1Move  && battleObj.player2Move) {
+
+                battle.team1FreeSwitch = false
+                battle.team2FreeSwitch = false
+    
+
+                const pokemonToSwitch1 = battle.team1.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player1Move?.switchPokemonId)
+                const pokemonToSwitch2 = battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId)
+
+                if(!pokemonToSwitch1 || !pokemonToSwitch2) {
+                    throw new Error("Pokemon not found")
+                }
+
+                pokemonToSwitch1.isActive = true
+                pokemonToSwitch1.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
+                pokemonToSwitch2.isActive = true
+                pokemonToSwitch2.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
+
+                const switchResult:switchResult = {
+                    playerOneMovedFirst: false,
+                    playerOneActivePokemon: pokemonToSwitch1,
+                    playerTwoActivePokemon: pokemonToSwitch2,
+                    otherChangedPokemonPlayerOne: [],
+                    otherChangedPokemonPlayerTwo: [],
+                    playerOneSwitched: true,
+                    playerTwoSwitched: true
+                }
+
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                battleObj.player1Move = null
+                battleObj.player2Move = null
+                
+
+
+        
+
+            }
+            return
+
+            
+
+
+        }
+
+
+
+    
+
+        
+
 
         if (battleObj.player1Move && battleObj.player2Move) {
 
             const switchResult = await this.handleSwitch(battleObj.player1Move, battleObj.player2Move, battleObj.battle.team1.userId, battleObj)
             // both players switched out
-            if (switchResult.playerOneSwitchedOut && switchResult.playerTwoSwitchedOut) {
+            if (switchResult.playerOneSwitched && switchResult.playerTwoSwitched) {
 
                 const battleUpdatePlayer = new BattleUpdatePlayer()
                 battleUpdatePlayer.battleId = battleObj.battle.id
@@ -65,7 +189,7 @@ export class BattleService {
                 battleUpdatePlayer.environment = battleObj.battle.environment
                 battleUpdatePlayer.movedFirst = switchResult.playerOneMovedFirst
 
-                this.publishBattleUpdate(battleObj, switchResult, switchResult.playerOneMovedFirst, null, null)
+                this.publishBattleUpdate(battleObj, switchResult, switchResult.playerOneMovedFirst, null, null, false, false)
 
             }
 
@@ -79,11 +203,11 @@ export class BattleService {
 
 
 
-            if (!switchResult.playerOneSwitchedOut) {
+            if (!switchResult.playerOneSwitched) {
                 playerOneUsedMovedId = playerOneActivePokemon.pokemon.moves?.find(m => m._id?.toString() === battleObj.player1Move?.moveId)
             }
 
-            if (!switchResult.playerTwoSwitchedOut) {
+            if (!switchResult.playerTwoSwitched) {
                 playerTwoUsedMovedId = playerTwoActivePokemon.pokemon.moves?.find(m => m._id?.toString() === battleObj.player2Move?.moveId)
             }
 
@@ -110,6 +234,7 @@ export class BattleService {
                 if (playerTwoActivePokemon.remainingHealth <= 0) {
                     playerTwoActivePokemon.isActive = false
                     playerTwoActivePokemon!.status!.primary = PrimaryStatus.Faint
+                    battle.team2FreeSwitch = true
                 }
 
                 else {
@@ -121,6 +246,7 @@ export class BattleService {
                     if (playerOneActivePokemon.remainingHealth <= 0) {
                         playerOneActivePokemon.isActive = false
                         playerOneActivePokemon!.status!.primary = PrimaryStatus.Faint
+                        battle.team1FreeSwitch = true
                     }
 
                 }
@@ -138,6 +264,7 @@ export class BattleService {
                 if (playerOneActivePokemon.remainingHealth <= 0) {
                     playerOneActivePokemon.isActive = false
                     playerOneActivePokemon!.status!.primary = PrimaryStatus.Faint
+                    battle.team1FreeSwitch = true
                 }
 
                 else {
@@ -149,6 +276,7 @@ export class BattleService {
                     if (playerTwoActivePokemon.remainingHealth <= 0) {
                         playerTwoActivePokemon.isActive = false
                         playerTwoActivePokemon!.status!.primary = PrimaryStatus.Faint
+                        battle.team2FreeSwitch = true
                     }
 
                 }
@@ -158,10 +286,27 @@ export class BattleService {
             battleObj.player1Move = null
             battleObj.player2Move = null
 
+            const faintedPokemonCount1 = battle.team1.pokemonInBattle.filter(pokemon => pokemon.status?.primary === PrimaryStatus.Faint).length
+            const faintedPokemonCount2 = battle.team2.pokemonInBattle.filter(pokemon => pokemon.status?.primary === PrimaryStatus.Faint).length
+
+            let playerOneLoss = false
+            let playerTwoLoss = false
+            if(faintedPokemonCount1 === 6) {
+                
+                playerOneLoss = true
+                
+            }
+
+            else if(faintedPokemonCount2 === 6) {
+                playerTwoLoss = true
+
+            }
+
+
             // in case of poison, sleep, or burn, we need to apply the status effect
 
             // player one switched out
-            this.publishBattleUpdate(battleObj, switchResult, playerOneMovedFirst, playerOneMoveUsed, playerTwoMoveUsed)
+            this.publishBattleUpdate(battleObj, switchResult, playerOneMovedFirst, playerOneMoveUsed, playerTwoMoveUsed, playerOneLoss, playerTwoLoss)
 
         }
 
@@ -173,8 +318,10 @@ export class BattleService {
 
     }
 
+    
 
-    publishBattleUpdate(battleObj: BattleObj, switchResult: switchResult ,  playerOneMovedFirst: boolean, playerOneMoveUsed: Move | null, playerTwoMoveUsed: Move | null) {
+
+    publishBattleUpdate(battleObj: BattleObj, switchResult: switchResult ,  playerOneMovedFirst: boolean, playerOneMoveUsed: Move | null, playerTwoMoveUsed: Move | null, playerOneLoss: boolean, playerTwoLoss: boolean) {
         const battleUpdate = new BattleUpdate()
             battleUpdate.battleId = battleObj.battle.id
             battleUpdate.playerOneChangedPokemon = new BattleTeam()
@@ -185,10 +332,12 @@ export class BattleService {
             battleUpdate.playerTwoChangedPokemon.pokemonInBattle = [switchResult.playerTwoActivePokemon, ...switchResult.otherChangedPokemonPlayerTwo]
             battleUpdate.environment = battleObj.battle.environment
             battleUpdate.playerOneMovedFirst = playerOneMovedFirst
-            battleUpdate.playerOneFreeSwitch = switchResult.playerOneSwitchedOut
-            battleUpdate.playerTwoFreeSwitch = switchResult.playerTwoSwitchedOut
+            battleUpdate.playerOneFreeSwitch = switchResult.playerOneSwitched
+            battleUpdate.playerTwoFreeSwitch = switchResult.playerTwoSwitched
             battleUpdate.playerOneMoveUsed = playerOneMoveUsed
             battleUpdate.playerTwoMoveUsed = playerTwoMoveUsed
+            battleUpdate.playerOneLoss = playerOneLoss
+            battleUpdate.playerTwoLoss = playerTwoLoss
 
 
             pubsub.publish(Topic.BATTLE_UPDATE, battleUpdate)
@@ -313,7 +462,7 @@ export class BattleService {
         return {
             playerOneMovedFirst, playerOneActivePokemon: currentPokemon
             , playerTwoActivePokemon: enemyCurrentPokemon, otherChangedPokemonPlayerOne, otherChangedPokemonPlayerTwo,
-            playerOneSwitchedOut: !moveInput1.isMove, playerTwoSwitchedOut: !moveInput2.isMove
+            playerOneSwitched: !moveInput1.isMove, playerTwoSwitched: !moveInput2.isMove
         }
 
     }
@@ -350,7 +499,7 @@ export class BattleService {
 
                 }
             }
-            pokeArr[0].isActive = true
+            
         }
 
         const environment: Environment = {}
@@ -359,6 +508,8 @@ export class BattleService {
         battle.environment = environment
         battle.team1 = { pokemonInBattle: pokemonInBattleArr[0], userId: "67abe4c8201f9cd643c552bf" }
         battle.team2 = { pokemonInBattle: pokemonInBattleArr[1], userId: "67b957d50ca31da275063b3b" }
+        battle.team1FreeSwitch = true
+        battle.team2FreeSwitch = true
         battle.id = "1"
         this.battleMap.set("1", { battle: battle, player1Move: null, player2Move: null })
         return battle

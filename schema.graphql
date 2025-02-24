@@ -98,6 +98,8 @@ type Battle {
   id: ID!
   team1: BattleTeam!
   team2: BattleTeam!
+  team1FreeSwitch: Boolean!
+  team2FreeSwitch: Boolean!
   environment: Environment!
 }
 
@@ -165,7 +167,7 @@ type FieldEffects {
 input MoveInput {
   battleId: ID!
   userId: ID!
-  pokemonId: ID!
+  pokemonId: ID
   isMove: Boolean!
   moveId: ID
   switchPokemonId: ID
@@ -187,4 +189,6 @@ type BattleUpdatePlayer {
   enemyDamage: Float
   allyMoveUsed: Move
   enemyMoveUsed: Move
+  playerLost: Boolean
+  enemyLost: Boolean
 }
