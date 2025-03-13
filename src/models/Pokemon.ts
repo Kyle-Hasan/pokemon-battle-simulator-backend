@@ -30,7 +30,7 @@ export class Pokemon {
 
     @Field(() => PokemonSpecies)
     @prop({ref: () => PokemonSpecies, required:true})
-    public pokemonSpecies!:  Ref<PokemonSpecies>
+    public pokemonSpecies!:  Ref<PokemonSpecies> | PokemonSpecies
 
     @Field(()=> [Move],{nullable:true})
     @prop({ ref: () => Move, default: [] })

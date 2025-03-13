@@ -76,7 +76,7 @@ type Mutation {
   editPokemon(pokemon: AddPokemonInput!, pokemonId: String!, teamId: String!): Pokemon!
   editTeam(team: AddTeamInput!): Team!
   deleteTeam(teamId: String!): String!
-  randomBattle: Battle!
+  randomBattle: PlayerBattle!
   updateBattle(moveInput: MoveInput!): String!
 }
 
@@ -94,17 +94,19 @@ input AddTeamInput {
   pokemon: [AddPokemonInput!]
 }
 
-type Battle {
-  id: ID!
-  team1: BattleTeam!
-  team2: BattleTeam!
-  team1FreeSwitch: Boolean!
-  team2FreeSwitch: Boolean!
+type PlayerBattle {
+  battleId: ID!
+  playerTeam: BattleTeam!
+  enemyTeam: BattleTeam!
+  playerSwitch: Boolean!
+  enemySwitch: Boolean!
   environment: Environment!
 }
 
 type BattleTeam {
   pokemonInBattle: [PokemonInBattle!]!
+  totalPokemon: Float!
+  playerName: String!
 }
 
 type PokemonInBattle {
@@ -179,15 +181,15 @@ type Subscription {
 
 type BattleUpdatePlayer {
   battleId: ID!
-  changedAllyPokemon: [PokemonInBattle!]!
+  changedPlayerPokemon: [PokemonInBattle!]!
   changedEnemyPokemon: [PokemonInBattle!]!
   environment: Environment!
   movedFirst: Boolean!
-  allyFreeSwitch: Boolean!
+  playerFreeSwitch: Boolean!
   enemyFreeSwitch: Boolean!
-  allyDamage: Float
+  playerDamage: Float
   enemyDamage: Float
-  allyMoveUsed: Move
+  playerMoveUsed: Move
   enemyMoveUsed: Move
   playerLost: Boolean
   enemyLost: Boolean

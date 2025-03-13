@@ -12,7 +12,7 @@ export class BattleUpdatePlayer {
   battleId!: string;
 
   @Field(() => [PokemonInBattle])
-  changedAllyPokemon!: PokemonInBattle[];
+  changedPlayerPokemon!: PokemonInBattle[];
 
   @Field(() => [PokemonInBattle])
   changedEnemyPokemon!: PokemonInBattle[];
@@ -25,20 +25,20 @@ export class BattleUpdatePlayer {
 
   // pokemon handle fainted
   @Field(()=> Boolean)
-  allyFreeSwitch!: boolean;
+  playerFreeSwitch!: boolean;
 
   @Field(()=> Boolean)
   enemyFreeSwitch!: boolean;
 
   @Field(()=> Number, {nullable: true})
-  allyDamage?: number;
+  playerDamage?: number;
 
   @Field(()=> Number, {nullable: true})
   enemyDamage?: number;
 
   // null for switch
   @Field(()=>Move, {nullable: true})
-  allyMoveUsed!: Move | null;
+  playerMoveUsed!: Move | null;
 
   @Field(()=>Move, {nullable: true})
   enemyMoveUsed!: Move | null;
@@ -48,6 +48,9 @@ export class BattleUpdatePlayer {
 
   @Field(()=> Boolean, {nullable: true})
   enemyLost!: boolean | null;
+
+  @Field(()=> Number)
+  turnNumber!:number
 
 
   
@@ -70,5 +73,6 @@ export class BattleUpdate {
   playerTwoDamage?: number;
   playerOneLoss?: boolean;
   playerTwoLoss?: boolean;
+  turnNumber!:number;
 
 }

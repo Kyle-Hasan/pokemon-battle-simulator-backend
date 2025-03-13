@@ -7,6 +7,7 @@ import { pubsub, Topic } from "./pubsub";
 import { Environment } from "../../models/Environment";
 import { Pokemon } from "../../models/Pokemon";
 import { MoveInput } from "../../models/MoveInput";
+import { PlayerBattle } from "../../models/PlayerBattle";
 
 
 
@@ -20,7 +21,7 @@ export class BattleResolver {
 
         this.battleService = new BattleService()
     }
-    @Mutation(_returns => Battle)
+    @Mutation(_returns => PlayerBattle)
     async randomBattle() {
 
     
@@ -59,15 +60,15 @@ export class BattleResolver {
 
     const battleUpdatePlayer = new BattleUpdatePlayer()
     battleUpdatePlayer.battleId = payload.battleId
-    battleUpdatePlayer.changedAllyPokemon = payload.playerOneChangedPokemon.pokemonInBattle
+    battleUpdatePlayer.changedPlayerPokemon = payload.playerOneChangedPokemon.pokemonInBattle
     battleUpdatePlayer.changedEnemyPokemon = payload.playerTwoChangedPokemon.pokemonInBattle
     battleUpdatePlayer.environment = payload.environment
     battleUpdatePlayer.movedFirst = payload.playerOneMovedFirst
-    battleUpdatePlayer.allyFreeSwitch = payload.playerOneFreeSwitch
+    battleUpdatePlayer.playerFreeSwitch = payload.playerOneFreeSwitch
     battleUpdatePlayer.enemyFreeSwitch = payload.playerTwoFreeSwitch
-    battleUpdatePlayer.allyDamage = payload.playerOneDamage
+    battleUpdatePlayer.playerDamage = payload.playerOneDamage
     battleUpdatePlayer.enemyDamage = payload.playerTwoDamage
-    battleUpdatePlayer.allyMoveUsed = payload.playerOneMoveUsed
+    battleUpdatePlayer.playerMoveUsed = payload.playerOneMoveUsed
     battleUpdatePlayer.enemyMoveUsed = payload.playerTwoMoveUsed
     battleUpdatePlayer.playerLost = payload.playerOneLoss ?? null
     battleUpdatePlayer.enemyLost = payload.playerTwoLoss ?? null

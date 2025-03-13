@@ -7,7 +7,12 @@ export class BattleTeam {
  @Field(() => [PokemonInBattle])
   pokemonInBattle !:PokemonInBattle[];
 
-  userId!:string;
+  
+  @Field(()=> Number)
+  totalPokemon!: number;
+
+
+
 
 
 }

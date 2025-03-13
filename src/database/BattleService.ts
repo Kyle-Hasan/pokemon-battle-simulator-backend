@@ -10,6 +10,9 @@ import { PrimaryStatus } from "../models/Status";
 import { TeamModel } from "../models/Team";
 import { getTeamWithAllPokemonInfo } from "./TeamService";
 import { BattleTeam } from "../models/BattleTeam";
+import { PokemonSpecies, PokemonSpeciesModel } from "../models/PokemonSpecies";
+import { PokemonType } from "../enums/PokemonType";
+import { PlayerBattle } from "../models/PlayerBattle";
 
 
 export interface BattleObj {
@@ -30,6 +33,147 @@ interface switchResult {
    
 }
 
+
+interface TypeEffectiveness {
+    doubleDamage: number,
+    halfDamage:  number,
+    noDamage: number;
+  }
+
+
+ // each type gets its own bit in the bitmask
+
+  const typeBitmask: Record<PokemonType, number> = {
+    [PokemonType.Normal]: 1 << 0,
+    [PokemonType.Fire]: 1 << 1,
+    [PokemonType.Water]: 1 << 2,
+    [PokemonType.Electric]: 1 << 3,
+    [PokemonType.Grass]: 1 << 4,
+    [PokemonType.Ice]: 1 << 5,
+    [PokemonType.Fighting]: 1 << 6,
+    [PokemonType.Poison]: 1 << 7,
+    [PokemonType.Ground]: 1 << 8,
+    [PokemonType.Flying]: 1 << 9,
+    [PokemonType.Psychic]: 1 << 10,
+    [PokemonType.Bug]: 1 << 11,
+    [PokemonType.Rock]: 1 << 12,
+    [PokemonType.Ghost]: 1 << 13,
+    [PokemonType.Dragon]: 1 << 14,
+    [PokemonType.Dark]: 1 << 15,
+    [PokemonType.Steel]: 1 << 16,
+    [PokemonType.Fairy]: 1 << 17,
+  };
+
+
+
+  const typeChartBitmask: Record<PokemonType, TypeEffectiveness> = {
+    [PokemonType.Normal]: {
+      doubleDamage: typeBitmask[PokemonType.Fighting],
+      halfDamage: 0,
+      noDamage: typeBitmask[PokemonType.Ghost],
+    },
+    [PokemonType.Fire]: {
+      doubleDamage: typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Ground] | typeBitmask[PokemonType.Rock],
+      halfDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Ice] |
+                  typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Steel] | typeBitmask[PokemonType.Fairy],
+      noDamage: 0,
+    },
+    [PokemonType.Water]: {
+      doubleDamage: typeBitmask[PokemonType.Electric] | typeBitmask[PokemonType.Grass],
+      halfDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Ice] |
+                  typeBitmask[PokemonType.Steel],
+      noDamage: 0,
+    },
+    [PokemonType.Electric]: {
+      doubleDamage: typeBitmask[PokemonType.Ground],
+      halfDamage: typeBitmask[PokemonType.Electric] | typeBitmask[PokemonType.Flying] | typeBitmask[PokemonType.Steel],
+      noDamage: 0,
+    },
+    [PokemonType.Grass]: {
+      doubleDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Ice] | typeBitmask[PokemonType.Poison] |
+                    typeBitmask[PokemonType.Flying] | typeBitmask[PokemonType.Bug],
+      halfDamage: typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Electric] | typeBitmask[PokemonType.Grass] |
+                  typeBitmask[PokemonType.Ground],
+      noDamage: 0,
+    },
+    [PokemonType.Ice]: {
+      doubleDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Rock] |
+                    typeBitmask[PokemonType.Steel],
+      halfDamage: typeBitmask[PokemonType.Ice],
+      noDamage: 0,
+    },
+    [PokemonType.Fighting]: {
+      doubleDamage: typeBitmask[PokemonType.Flying] | typeBitmask[PokemonType.Psychic] | typeBitmask[PokemonType.Fairy],
+      halfDamage: typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Rock] | typeBitmask[PokemonType.Dark],
+      noDamage: 0,
+    },
+    [PokemonType.Poison]: {
+      doubleDamage: typeBitmask[PokemonType.Ground] | typeBitmask[PokemonType.Psychic],
+      halfDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Poison] | typeBitmask[PokemonType.Bug] |
+                  typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Fairy],
+      noDamage: typeBitmask[PokemonType.Steel],
+    },
+    [PokemonType.Ground]: {
+      doubleDamage: typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Ice],
+      halfDamage: typeBitmask[PokemonType.Poison] | typeBitmask[PokemonType.Rock],
+      noDamage: typeBitmask[PokemonType.Electric],
+    },
+    [PokemonType.Flying]: {
+      doubleDamage: typeBitmask[PokemonType.Electric] | typeBitmask[PokemonType.Ice] | typeBitmask[PokemonType.Rock],
+      halfDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Grass],
+      noDamage: 0,
+    },
+    [PokemonType.Psychic]: {
+      doubleDamage: typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Ghost] | typeBitmask[PokemonType.Dark],
+      halfDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Psychic],
+      noDamage: 0,
+    },
+    [PokemonType.Bug]: {
+      doubleDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Flying] | typeBitmask[PokemonType.Rock],
+      halfDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Ground],
+      noDamage: 0,
+    },
+    [PokemonType.Rock]: {
+      doubleDamage: typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Fighting] |
+                    typeBitmask[PokemonType.Ground] | typeBitmask[PokemonType.Steel],
+      halfDamage: typeBitmask[PokemonType.Normal] | typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Poison] |
+                  typeBitmask[PokemonType.Flying],
+      noDamage: 0,
+    },
+    [PokemonType.Ghost]: {
+      doubleDamage: typeBitmask[PokemonType.Ghost] | typeBitmask[PokemonType.Dark],
+      halfDamage: typeBitmask[PokemonType.Poison] | typeBitmask[PokemonType.Bug],
+      noDamage: typeBitmask[PokemonType.Normal] | typeBitmask[PokemonType.Fighting],
+    },
+    [PokemonType.Dragon]: {
+      doubleDamage: typeBitmask[PokemonType.Ice] | typeBitmask[PokemonType.Dragon] | typeBitmask[PokemonType.Fairy],
+      halfDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Water] | typeBitmask[PokemonType.Electric] |
+                  typeBitmask[PokemonType.Grass],
+      noDamage: 0,
+    },
+    [PokemonType.Dark]: {
+      doubleDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Fairy],
+      halfDamage: typeBitmask[PokemonType.Ghost] | typeBitmask[PokemonType.Dark],
+      noDamage: typeBitmask[PokemonType.Psychic],
+    },
+    [PokemonType.Steel]: {
+      doubleDamage: typeBitmask[PokemonType.Fire] | typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Ground],
+      halfDamage: typeBitmask[PokemonType.Normal] | typeBitmask[PokemonType.Grass] | typeBitmask[PokemonType.Ice] |
+                  typeBitmask[PokemonType.Flying] | typeBitmask[PokemonType.Psychic] | typeBitmask[PokemonType.Bug] |
+                  typeBitmask[PokemonType.Rock] | typeBitmask[PokemonType.Dragon] | typeBitmask[PokemonType.Steel] |
+                  typeBitmask[PokemonType.Fairy],
+      noDamage: typeBitmask[PokemonType.Poison],
+    },
+    [PokemonType.Fairy]: {
+      doubleDamage: typeBitmask[PokemonType.Poison] | typeBitmask[PokemonType.Steel],
+      halfDamage: typeBitmask[PokemonType.Fighting] | typeBitmask[PokemonType.Bug] | typeBitmask[PokemonType.Dark],
+      noDamage: typeBitmask[PokemonType.Dragon],
+    },
+  };
+  
+  
+ 
+
 export class BattleService {
     battleMap: Map<string, BattleObj>;
 
@@ -49,8 +193,9 @@ export class BattleService {
         let battle = battleObj.battle
 
 
-        if (moveInput.userId === battleObj.battle.team1.userId) {
+        if (moveInput.userId === battleObj.battle.player1Info.id) {
             battleObj.player1Move = moveInput
+
         } else {
             battleObj.player2Move = moveInput
         }
@@ -76,7 +221,7 @@ export class BattleService {
                     playerTwoSwitched: false
                 }
 
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false,battle.turnNumber)
                 battleObj.player1Move = null
                 battleObj.player2Move = null
                 return
@@ -110,7 +255,7 @@ export class BattleService {
 
                 }
 
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false,battle.turnNumber)
                 battleObj.player1Move = null
                 battleObj.player2Move = null
                 return
@@ -153,7 +298,7 @@ export class BattleService {
                     playerTwoSwitched: true
                 }
 
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false)
+                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false,battle.turnNumber)
                 battleObj.player1Move = null
                 battleObj.player2Move = null
                 
@@ -169,27 +314,20 @@ export class BattleService {
 
         }
 
-
-
-    
-
-        
-
-
         if (battleObj.player1Move && battleObj.player2Move) {
 
-            const switchResult = await this.handleSwitch(battleObj.player1Move, battleObj.player2Move, battleObj.battle.team1.userId, battleObj)
+            const switchResult = await this.handleSwitch(battleObj.player1Move, battleObj.player2Move, battleObj.battle.player1Info.id, battleObj)
             // both players switched out
             if (switchResult.playerOneSwitched && switchResult.playerTwoSwitched) {
 
                 const battleUpdatePlayer = new BattleUpdatePlayer()
                 battleUpdatePlayer.battleId = battleObj.battle.id
-                battleUpdatePlayer.changedAllyPokemon = [switchResult.playerOneActivePokemon, ...switchResult.otherChangedPokemonPlayerOne]
+                battleUpdatePlayer.changedPlayerPokemon = [switchResult.playerOneActivePokemon, ...switchResult.otherChangedPokemonPlayerOne]
                 battleUpdatePlayer.changedEnemyPokemon = [switchResult.playerTwoActivePokemon, ...switchResult.otherChangedPokemonPlayerTwo]
                 battleUpdatePlayer.environment = battleObj.battle.environment
                 battleUpdatePlayer.movedFirst = switchResult.playerOneMovedFirst
 
-                this.publishBattleUpdate(battleObj, switchResult, switchResult.playerOneMovedFirst, null, null, false, false)
+                this.publishBattleUpdate(battleObj, switchResult, switchResult.playerOneMovedFirst, null, null, false, false,battle.turnNumber)
 
             }
 
@@ -306,7 +444,7 @@ export class BattleService {
             // in case of poison, sleep, or burn, we need to apply the status effect
 
             // player one switched out
-            this.publishBattleUpdate(battleObj, switchResult, playerOneMovedFirst, playerOneMoveUsed, playerTwoMoveUsed, playerOneLoss, playerTwoLoss)
+            this.publishBattleUpdate(battleObj, switchResult, playerOneMovedFirst, playerOneMoveUsed, playerTwoMoveUsed, playerOneLoss, playerTwoLoss,battle.turnNumber)
 
         }
 
@@ -318,17 +456,23 @@ export class BattleService {
 
     }
 
+    handleFreeSwitch(battleObj: BattleObj, switchResult: switchResult) {
+
+
+
+    }
+
     
 
 
-    publishBattleUpdate(battleObj: BattleObj, switchResult: switchResult ,  playerOneMovedFirst: boolean, playerOneMoveUsed: Move | null, playerTwoMoveUsed: Move | null, playerOneLoss: boolean, playerTwoLoss: boolean) {
+    publishBattleUpdate(battleObj: BattleObj, switchResult: switchResult ,  playerOneMovedFirst: boolean, playerOneMoveUsed: Move | null, playerTwoMoveUsed: Move | null, playerOneLoss: boolean, playerTwoLoss: boolean, turnNumber:number) {
         const battleUpdate = new BattleUpdate()
             battleUpdate.battleId = battleObj.battle.id
             battleUpdate.playerOneChangedPokemon = new BattleTeam()
-            battleUpdate.playerOneChangedPokemon.userId = battleObj.battle.team1.userId
+
             battleUpdate.playerOneChangedPokemon.pokemonInBattle = [switchResult.playerOneActivePokemon, ...switchResult.otherChangedPokemonPlayerOne]
             battleUpdate.playerTwoChangedPokemon = new BattleTeam()
-            battleUpdate.playerTwoChangedPokemon.userId = battleObj.battle.team2.userId
+   
             battleUpdate.playerTwoChangedPokemon.pokemonInBattle = [switchResult.playerTwoActivePokemon, ...switchResult.otherChangedPokemonPlayerTwo]
             battleUpdate.environment = battleObj.battle.environment
             battleUpdate.playerOneMovedFirst = playerOneMovedFirst
@@ -338,21 +482,70 @@ export class BattleService {
             battleUpdate.playerTwoMoveUsed = playerTwoMoveUsed
             battleUpdate.playerOneLoss = playerOneLoss
             battleUpdate.playerTwoLoss = playerTwoLoss
+            battleUpdate.turnNumber = turnNumber+1
 
 
             pubsub.publish(Topic.BATTLE_UPDATE, battleUpdate)
     }
 
     calculateDamage(move: Move, attacker: PokemonInBattle, defender: PokemonInBattle) {
-        if (!move) {
+        if (!move || !move.accuracy) {
             return 0
         }
 
+
+        const criticalHit = Math.random() < 0.0625
+
+        const missedChange = (100-move.accuracy) / 100
+
+        const missed = Math.random() < missedChange
+
+
+        const getEffectiveness = this.getTypeEffectiveness(move.type as PokemonType, defender.pokemon.pokemonSpecies as PokemonSpecies)
+
         const attackerAttack = attacker.pokemon.stats?.attack || 0;
         const defenderDefense = defender.pokemon.stats?.defense || 1;
-        const damage = (move.basePower || 0) * attackerAttack / defenderDefense;
+        const damage = (move.basePower || 0) * attackerAttack / defenderDefense * getEffectiveness;
+
+        if(criticalHit) {
+            return damage * 2
+        }
+
+        if(missed) {
+            return 0
+        }
 
         return damage;
+    }
+
+
+    getTypeEffectiveness(moveType: PokemonType, defenderSpecies: PokemonSpecies) 
+    {
+        const defenderTypes = defenderSpecies.type
+
+        let totalEffectiveness = 1
+
+        let typeBit= typeBitmask[moveType]
+
+        for (const type of defenderTypes!) {
+            const {doubleDamage, halfDamage, noDamage} = typeChartBitmask[type]
+
+            if(doubleDamage & typeBit) {
+                totalEffectiveness *= 2
+            }
+            else if(halfDamage & typeBit) {
+                totalEffectiveness *= 0.5
+            }
+            else if(noDamage & typeBit) {
+                totalEffectiveness = 0
+            }
+        }
+
+        return totalEffectiveness
+
+
+        
+
     }
 
 
@@ -405,8 +598,8 @@ export class BattleService {
         debugger
         // return active pokemon and switched out pokemon if it exists, therefore we return an array of two pokemon
 
-        const playerTeam = playerId === battleObj.battle.team1.userId ? battleObj.battle.team1 : battleObj.battle.team2
-        const enemyTeam = playerId === battleObj.battle.team1.userId ? battleObj.battle.team2 : battleObj.battle.team1
+        const playerTeam = playerId === battleObj.battle.player1Info.id ? battleObj.battle.team1 : battleObj.battle.team2
+        const enemyTeam = playerId === battleObj.battle.player2Info.id ? battleObj.battle.team2 : battleObj.battle.team1
 
         let currentPokemon = playerTeam.pokemonInBattle.find(p => p.pokemon?._id?.toString() === moveInput1.pokemonId)
 
@@ -506,12 +699,28 @@ export class BattleService {
 
         const battle = new Battle()
         battle.environment = environment
-        battle.team1 = { pokemonInBattle: pokemonInBattleArr[0], userId: "67abe4c8201f9cd643c552bf" }
-        battle.team2 = { pokemonInBattle: pokemonInBattleArr[1], userId: "67b957d50ca31da275063b3b" }
+        battle.team1 = { pokemonInBattle: pokemonInBattleArr[0], totalPokemon: 6 , }
+        battle.team2 = { pokemonInBattle: pokemonInBattleArr[1], totalPokemon: 6, }
         battle.team1FreeSwitch = true
         battle.team2FreeSwitch = true
         battle.id = "1"
+        battle.player1Info.id = '67abe4c8201f9cd643c552bf'
+        battle.player1Info.playerName = "reona"
+        battle.player2Info.id = '67b957d50ca31da275063b3b'
+        battle.player2Info.playerName = "rie"
+        battle.turnNumber = 0
         this.battleMap.set("1", { battle: battle, player1Move: null, player2Move: null })
+
+        const playerBattle = new PlayerBattle()
+        playerBattle.battleId = battle.id
+        playerBattle.playerTeam = battle.team1
+        playerBattle.enemyTeam = battle.team2
+        playerBattle.environment = battle.environment
+        playerBattle.turnNumber = 0
+        
+
+
+
         return battle
 
 
