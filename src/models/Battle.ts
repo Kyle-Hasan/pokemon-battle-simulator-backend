@@ -5,7 +5,7 @@ import { PlayerInfo } from "./Player";
 
 @ObjectType()
 export class Battle {
-  @Field(() => ID)
+  @Field(() => String)
   id!: string;
 
   @Field(() => BattleTeam)

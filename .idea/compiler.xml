@@ -3,5 +3,6 @@
   <component name="TypeScriptCompiler">
     <option name="recompileOnChanges" value="true" />
     <option name="useTypesFromServer" value="true" />
+    <option name="versionType" value="EMBEDDED" />
   </component>
 </project>

@@ -95,24 +95,26 @@ input AddTeamInput {
 }
 
 type PlayerBattle {
-  battleId: ID!
+  id: ID!
   playerTeam: BattleTeam!
   enemyTeam: BattleTeam!
   playerSwitch: Boolean!
   enemySwitch: Boolean!
   environment: Environment!
+  turnNumber: Float!
+  playerInfo: PlayerInfo!
+  enemyInfo: PlayerInfo!
 }
 
 type BattleTeam {
   pokemonInBattle: [PokemonInBattle!]!
   totalPokemon: Float!
-  playerName: String!
 }
 
 type PokemonInBattle {
   pokemon: Pokemon!
   status: Status
-  remainingHealth: Int!
+  remainingHealth: Float!
   isActive: Boolean!
   statStages: Stats!
 }
@@ -166,6 +168,11 @@ type FieldEffects {
   safeguard: Int!
 }
 
+type PlayerInfo {
+  playerName: String!
+  playerAvatarURL: String!
+}
+
 input MoveInput {
   battleId: ID!
   userId: ID!
@@ -176,11 +183,11 @@ input MoveInput {
 }
 
 type Subscription {
-  battleUpdate(battleId: String!): BattleUpdatePlayer!
+  battleUpdate(battleId: String!): BattleUpdatePlayer
 }
 
 type BattleUpdatePlayer {
-  battleId: ID!
+  battleId: String!
   changedPlayerPokemon: [PokemonInBattle!]!
   changedEnemyPokemon: [PokemonInBattle!]!
   environment: Environment!
@@ -193,4 +200,5 @@ type BattleUpdatePlayer {
   enemyMoveUsed: Move
   playerLost: Boolean
   enemyLost: Boolean
+  turnNumber: Float!
 }

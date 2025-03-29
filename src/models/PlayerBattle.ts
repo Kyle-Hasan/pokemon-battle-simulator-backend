@@ -9,7 +9,7 @@ import { PlayerInfo } from "./Player";
 @ObjectType()
 export class PlayerBattle {
   @Field(() => ID)
-  battleId!: string;
+  id!: string;
 
   @Field(() => BattleTeam)
   playerTeam!: BattleTeam;
@@ -18,23 +18,23 @@ export class PlayerBattle {
   enemyTeam!: BattleTeam;
 
 
-  @Field(()=> Boolean)
+  @Field(() => Boolean)
   playerSwitch!: boolean;
 
-  @Field(()=> Boolean)
+  @Field(() => Boolean)
   enemySwitch!: boolean;
 
   @Field(() => Environment)
   environment!: Environment;
 
-  @Field(()=> Number)
-  turnNumber!:number;
+  @Field(() => Number)
+  turnNumber!: number;
 
-   @Field(()=> PlayerInfo)
-    player1Info!:PlayerInfo;
-  
-    @Field(()=>PlayerInfo)
-    player2Info!:PlayerInfo;
+  @Field(() => PlayerInfo)
+  playerInfo!: PlayerInfo;
+
+  @Field(() => PlayerInfo)
+  enemyInfo!: PlayerInfo;
 
 
 

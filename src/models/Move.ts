@@ -11,8 +11,9 @@ export class Move {
   @Field(() => ID)
   public readonly _id?: Types.ObjectId | null | string;
 
-  @Field(()=> String, {nullable:true})
+
   @prop({ required: true })
+  @Field(()=> String, {nullable:true})
   public name!: string;
 
 

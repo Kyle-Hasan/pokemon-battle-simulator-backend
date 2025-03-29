@@ -4,7 +4,7 @@ import { Status } from "./Status";
 @ObjectType()
 export class PokemonUpdate {
   
-  @Field(() => Int, { nullable: true })
+  @Field(() => Number, { nullable: true })
   remainingHp?: number;
 
   @Field(() => Status, { nullable: true })

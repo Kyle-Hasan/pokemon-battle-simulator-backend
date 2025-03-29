@@ -8,7 +8,7 @@ import { Move } from "./Move";
 @ObjectType()
 export class BattleUpdatePlayer {
 
-  @Field(() => ID)
+  @Field(() => String)
   battleId!: string;
 
   @Field(() => [PokemonInBattle])

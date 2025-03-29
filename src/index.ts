@@ -16,7 +16,6 @@ import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHt
 import dotenv from 'dotenv';
 import { writeFileSync } from "fs";
 import { printSchema } from "graphql";
-import { addPokemon } from "./seed";
 import { TeamResolver } from "./graphql/resolver/TeamResolver";
 import { PokemonResolver } from "./graphql/resolver/PokemonResolver";
 import { BattleResolver } from "./graphql/resolver/BattleResolver";

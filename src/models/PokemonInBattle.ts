@@ -19,7 +19,7 @@ export class PokemonInBattle {
     @Field(()=>Status, {nullable:true})
     public status?: Status
 
-    @Field(()=>Int)
+    @Field(()=>Number)
     public remainingHealth!:number
 
     @Field(()=>Boolean)

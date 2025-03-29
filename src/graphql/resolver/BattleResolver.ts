@@ -25,9 +25,8 @@ export class BattleResolver {
     async randomBattle() {
 
     
-
-        const battle = await this.battleService.newBattle()
-        return battle
+        const battle = await this.battleService.newBattle();
+        return battle;
 
 
     }
@@ -36,7 +35,7 @@ export class BattleResolver {
     @Mutation(_returns => String)
     async updateBattle(@Arg("moveInput") moveInput:MoveInput) {
         const battle = { battleId: "1", changedAllyPokemon: [], changedEnemyPokemon: [], environment: "test" }
-        debugger
+        
         this.battleService.updateBattle(moveInput)
         return "received"
     }
@@ -47,6 +46,7 @@ export class BattleResolver {
   
   @Subscription(() => BattleUpdatePlayer, {
     topics: Topic.BATTLE_UPDATE,
+    nullable:true,
     filter: ({ payload, args }: SubscriptionHandlerData<BattleUpdatePlayer>) => {
       if (!payload) return false;  
       return payload.battleId === args.battleId;
@@ -55,7 +55,14 @@ export class BattleResolver {
   battleUpdate(
     @Root() payload: BattleUpdate,
     @Arg("battleId") battleId: string
-  ): BattleUpdatePlayer {
+  ): BattleUpdatePlayer | void {
+
+   
+
+    
+    if(!payload) {
+      return ;
+    }
 
 
     const battleUpdatePlayer = new BattleUpdatePlayer()
@@ -72,6 +79,7 @@ export class BattleResolver {
     battleUpdatePlayer.enemyMoveUsed = payload.playerTwoMoveUsed
     battleUpdatePlayer.playerLost = payload.playerOneLoss ?? null
     battleUpdatePlayer.enemyLost = payload.playerTwoLoss ?? null
+    battleUpdatePlayer.turnNumber = payload.turnNumber;
     
 
     return battleUpdatePlayer
