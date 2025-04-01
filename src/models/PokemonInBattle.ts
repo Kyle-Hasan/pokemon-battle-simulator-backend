@@ -16,8 +16,8 @@ export class PokemonInBattle {
   
     public pokemon!:  Pokemon
 
-    @Field(()=>Status, {nullable:true})
-    public status?: Status
+    @Field(() => Status)
+    public status: Status = new Status;
 
     @Field(()=>Number)
     public remainingHealth!:number

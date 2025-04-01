@@ -1,9 +1,9 @@
-import { Types } from "mongoose";
+import { mongo, Types } from "mongoose";
 import { pubsub, Topic } from "../graphql/resolver/pubsub";
 import { Battle } from "../models/Battle";
 import { BattleUpdate, BattleUpdatePlayer } from "../models/BattleUpdatePlayer";
 import { Environment } from "../models/Environment";
-import { Move, MoveModel } from "../models/Move";
+import { Move, MoveCategory, MoveModel } from "../models/Move";
 import { MoveInput } from "../models/MoveInput";
 import { PokemonInBattle } from "../models/PokemonInBattle";
 import { PrimaryStatus } from "../models/Status";
@@ -14,23 +14,25 @@ import { PokemonSpecies, PokemonSpeciesModel } from "../models/PokemonSpecies";
 import { PokemonType } from "../enums/PokemonType";
 import { PlayerBattle } from "../models/PlayerBattle";
 import { PlayerInfo } from "../models/Player";
+import { BattleEventType, BattleTurnEvent } from "../models/BattleTurnEvent";
+import { error } from "console";
+import { Pokemon } from "../models/Pokemon";
 
 
 export interface BattleObj {
 
     battle: Battle
-    player1Move: MoveInput | null
-    player2Move: MoveInput | null
+    playerMoves: MoveInput[]
 }
 
 interface switchResult {
-    playerOneMovedFirst: boolean
+
     playerOneActivePokemon: PokemonInBattle
     playerTwoActivePokemon: PokemonInBattle
     otherChangedPokemonPlayerOne: PokemonInBattle[]
     otherChangedPokemonPlayerTwo: PokemonInBattle[]
-    playerOneSwitched: boolean
-    playerTwoSwitched: boolean
+    movedFirstIndex: number;
+    playersSwitched: boolean;
 
 }
 
@@ -40,6 +42,15 @@ interface TypeEffectiveness {
     halfDamage: number,
     noDamage: number;
 }
+
+interface AttackResult {
+    criticalHit: boolean,
+    typeEffectiveness: number,
+    damage: number,
+    missed: boolean,
+    status?: string
+}
+
 
 
 // each type gets its own bit in the bitmask
@@ -184,340 +195,163 @@ export class BattleService {
 
     async updateBattle(moveInput: MoveInput) {
 
-
-
-        let battleObj = this.battleMap.get(moveInput.battleId) || { battle: null, player1Move: null, player2Move: null }
-        if (!battleObj.battle) {
-            throw new Error("Battle not found")
+        const battleObj = this.battleMap.get(moveInput.battleId);
+        if (!battleObj) {
+            throw new Error("this battle does not exist");
         }
 
-        let battle = battleObj.battle
+        this.setPlayerMoves(moveInput, battleObj);
 
+        // free switches
+        const freeSwitchAvaliable = battleObj.battle.teams.filter(x => x.freeSwitch);
 
-        if (moveInput.userId === battleObj.battle.player1Info.id) {
-            battleObj.player1Move = moveInput
+        if (freeSwitchAvaliable.length > 0 && battleObj.playerMoves.length === freeSwitchAvaliable.length) {
 
-        } else {
-            battleObj.player2Move = moveInput
-        }
-
-        if (battle.team1FreeSwitch && !battle.team2FreeSwitch) {
-            battle.team1FreeSwitch = false
-
-            if (battleObj.player1Move) {
-                const pokemonToSwitch = battle.team1.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player1Move?.switchPokemonId)
-                if (!pokemonToSwitch) {
-                    throw new Error("Pokemon not found")
-                }
-
-                pokemonToSwitch.isActive = true
-                pokemonToSwitch.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-                const switchResult: switchResult = {
-                    playerOneMovedFirst: false,
-                    playerOneActivePokemon: pokemonToSwitch,
-                    playerTwoActivePokemon: battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId) as PokemonInBattle,
-                    otherChangedPokemonPlayerOne: [],
-                    otherChangedPokemonPlayerTwo: [],
-                    playerOneSwitched: true,
-                    playerTwoSwitched: false
-                }
-
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false, battle.turnNumber)
-                battleObj.player1Move = null
-                battleObj.player2Move = null
-                return
+            const correspondingTeam = freeSwitchAvaliable.find((x) => x.userId === moveInput.teamId);
+            if (!correspondingTeam || moveInput.isMove) {
+                throw new Error("you can't make this move");
             }
+            this.handleFreeSwitch(moveInput, battleObj, correspondingTeam);
 
-            else if (battleObj.player2Move) {
-                throw new Error("Invalid move")
-            }
-
-        }
-
-        if (!battle.team1FreeSwitch && battle.team2FreeSwitch) {
-            battle.team2FreeSwitch = false
-
-            if (battleObj.player2Move) {
-                const pokemonToSwitch = battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId)
-                if (!pokemonToSwitch) {
-                    throw new Error("Pokemon not found")
-                }
-
-                pokemonToSwitch.isActive = true
-                pokemonToSwitch.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-                const switchResult: switchResult = {
-                    playerOneMovedFirst: false,
-                    playerOneActivePokemon: pokemonToSwitch,
-                    playerTwoActivePokemon: battle.team2.pokemonInBattle[0],
-                    otherChangedPokemonPlayerOne: [],
-                    otherChangedPokemonPlayerTwo: [],
-                    playerOneSwitched: false,
-                    playerTwoSwitched: true
-
-                }
-
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false, battle.turnNumber)
-                battleObj.player1Move = null
-                battleObj.player2Move = null
-                return
-            }
-
-            else if (battleObj.player1Move) {
-                throw new Error("Invalid move")
-            }
-        }
-
-        if (battle.team1FreeSwitch && battle.team2FreeSwitch) {
-
-
-
-            if (battleObj.player1Move && battleObj.player2Move) {
-
-                battle.team1FreeSwitch = false
-                battle.team2FreeSwitch = false
-
-
-                const pokemonToSwitch1 = battle.team1.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player1Move?.switchPokemonId)
-                const pokemonToSwitch2 = battle.team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === battleObj?.player2Move?.switchPokemonId)
-
-                if (!pokemonToSwitch1 || !pokemonToSwitch2) {
-                    throw new Error("Pokemon not found")
-                }
-
-                pokemonToSwitch1.isActive = true
-                pokemonToSwitch1.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-                pokemonToSwitch2.isActive = true
-                pokemonToSwitch2.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-
-                const switchResult: switchResult = {
-                    playerOneMovedFirst: false,
-                    playerOneActivePokemon: pokemonToSwitch1,
-                    playerTwoActivePokemon: pokemonToSwitch2,
-                    otherChangedPokemonPlayerOne: [],
-                    otherChangedPokemonPlayerTwo: [],
-                    playerOneSwitched: true,
-                    playerTwoSwitched: true
-                }
-
-                this.publishBattleUpdate(battleObj, switchResult, false, null, null, false, false, battle.turnNumber)
-                battleObj.player1Move = null
-                battleObj.player2Move = null
-
-
-
-
-
-            }
-            return
-
-
-
-
-        }
-
-        if (battleObj.player1Move && battleObj.player2Move) {
-
-            const switchResult = await this.handleSwitch(battleObj.player1Move, battleObj.player2Move, battleObj)
-            // both players switched out
-            if (switchResult.playerOneSwitched && switchResult.playerTwoSwitched) {
-
-                const battleUpdatePlayer = new BattleUpdatePlayer()
-                battleUpdatePlayer.battleId = battleObj.battle.id
-                battleUpdatePlayer.changedPlayerPokemon = [switchResult.playerOneActivePokemon, ...switchResult.otherChangedPokemonPlayerOne]
-                battleUpdatePlayer.changedEnemyPokemon = [switchResult.playerTwoActivePokemon, ...switchResult.otherChangedPokemonPlayerTwo]
-                battleUpdatePlayer.environment = battleObj.battle.environment
-                battleUpdatePlayer.movedFirst = switchResult.playerOneMovedFirst
-
-                this.publishBattleUpdate(battleObj, switchResult, switchResult.playerOneMovedFirst, null, null, false, false, battle.turnNumber)
-
-            }
-
-            const playerOneActivePokemon = switchResult.playerOneActivePokemon
-            const playerTwoActivePokemon = switchResult.playerTwoActivePokemon
-
-            let playerOneUsedMovedId = null
-            let playerTwoUsedMovedId = null
-            let playerOneMoveUsed = null
-            let playerTwoMoveUsed = null
-
-
-
-            if (!switchResult.playerOneSwitched) {
-                playerOneUsedMovedId = playerOneActivePokemon.pokemon.moves?.find(m => m._id?.toString() === battleObj.player1Move?.moveId)
-            }
-
-            if (!switchResult.playerTwoSwitched) {
-                playerTwoUsedMovedId = playerTwoActivePokemon.pokemon.moves?.find(m => m._id?.toString() === battleObj.player2Move?.moveId)
-            }
-
-
-
-
-            if (playerOneUsedMovedId) {
-                playerOneMoveUsed = await MoveModel.findById(playerOneUsedMovedId)
-            }
-
-            if (playerTwoUsedMovedId) {
-                playerTwoMoveUsed = await MoveModel.findById(playerTwoUsedMovedId)
-            }
-
-
-            const playerOneMovedFirst = await this.decideWhoMovesFirst(playerOneActivePokemon, playerTwoActivePokemon, playerOneMoveUsed as Move, playerTwoMoveUsed as Move) as boolean
-
-            if (playerOneMovedFirst) {
-
-
-                const player1Damage = Math.floor(this.calculateDamage(playerOneMoveUsed!, playerOneActivePokemon, playerTwoActivePokemon))
-                playerTwoActivePokemon.remainingHealth = playerTwoActivePokemon.remainingHealth - player1Damage
-
-                if (playerTwoActivePokemon.remainingHealth <= 0) {
-                    playerTwoActivePokemon.isActive = false
-                    playerTwoActivePokemon!.status!.primary = PrimaryStatus.Faint
-                    battle.team2FreeSwitch = true
-                }
-
-                else {
-
-
-                    const player2Damage = Math.floor(this.calculateDamage(playerTwoMoveUsed!, playerTwoActivePokemon, playerOneActivePokemon))
-                    playerOneActivePokemon.remainingHealth = playerOneActivePokemon.remainingHealth - player2Damage
-
-                    if (playerOneActivePokemon.remainingHealth <= 0) {
-                        playerOneActivePokemon.isActive = false
-                        playerOneActivePokemon!.status!.primary = PrimaryStatus.Faint
-                        battle.team1FreeSwitch = true
-                    }
-
-                }
-
-
-
-            }
-
-            else {
-
-                const playerTwoMoveUsed = await MoveModel.findById(playerTwoUsedMovedId)
-                const player2Damage = this.calculateDamage(playerTwoMoveUsed!, playerTwoActivePokemon, playerOneActivePokemon)
-                playerOneActivePokemon.remainingHealth = playerOneActivePokemon.remainingHealth - player2Damage
-
-                if (playerOneActivePokemon.remainingHealth <= 0) {
-                    playerOneActivePokemon.isActive = false
-                    playerOneActivePokemon!.status!.primary = PrimaryStatus.Faint
-                    battle.team1FreeSwitch = true
-                }
-
-                else {
-
-                    const playerOneMoveUsed = await MoveModel.findById(playerOneUsedMovedId)
-                    const player1Damage = this.calculateDamage(playerOneMoveUsed!, playerOneActivePokemon, playerTwoActivePokemon)
-                    playerTwoActivePokemon.remainingHealth = playerTwoActivePokemon.remainingHealth - player1Damage
-
-                    if (playerTwoActivePokemon.remainingHealth <= 0) {
-                        playerTwoActivePokemon.isActive = false
-                        playerTwoActivePokemon!.status!.primary = PrimaryStatus.Faint
-                        battle.team2FreeSwitch = true
-                    }
-
-                }
-
-
-            }
-            battleObj.player1Move = null
-            battleObj.player2Move = null
-
-            const faintedPokemonCount1 = battle.team1.pokemonInBattle.filter(pokemon => pokemon.status?.primary === PrimaryStatus.Faint).length
-            const faintedPokemonCount2 = battle.team2.pokemonInBattle.filter(pokemon => pokemon.status?.primary === PrimaryStatus.Faint).length
-
-            let playerOneLoss = false
-            let playerTwoLoss = false
-            if (faintedPokemonCount1 === 6) {
-
-                playerOneLoss = true
-
-            }
-
-            else if (faintedPokemonCount2 === 6) {
-                playerTwoLoss = true
-
-            }
-
-
-            // in case of poison, sleep, or burn, we need to apply the status effect
-
-            // player one switched out
-            this.publishBattleUpdate(battleObj, switchResult, playerOneMovedFirst, playerOneMoveUsed, playerTwoMoveUsed, playerOneLoss, playerTwoLoss, battle.turnNumber)
 
         }
 
         else {
-            return "waiting for moves"
+
+            const bothPlayersMoved = battleObj.playerMoves.length === battleObj.battle.teams.length;
+
+            if (bothPlayersMoved) {
+
+                // move inputs should have the actual pokemon on them, so this sort should be safe
+                battleObj.playerMoves.sort((moveInput1, moveInput2) => this.decideWhoMovesFirst(moveInput1, moveInput2, battleObj.battle.environment));
+
+
+                // add switch events and change active pokemon as needed
+                this.handleSwitch(battleObj);
+
+                battleObj.playerMoves.forEach((moveInput) => {
+                    this.handleMove(battleObj, moveInput);
+                });
+
+                // end battle and declare winner if only 1 team has non-fainted pokemon
+                const remainingTeams = battleObj.battle.teams.filter((team) => team.pokemonInBattle.some(pokemon => pokemon.status.primary != PrimaryStatus.Faint));
+                if (remainingTeams.length == 1) {
+                    // declare winner
+                }
+            }
+        }
+
+        // clear move inputs once they are all done
+        battleObj.playerMoves = [];
+
+
+    }
+
+    handleFreeSwitch(moveInput: MoveInput, battleObj: BattleObj, correspondingTeam: BattleTeam) {
+
+        // if any other pokemon is active, this is also invalid
+        let switchIn = null;
+        let otherActive = false;
+
+
+        for (const pokemon of correspondingTeam.pokemonInBattle) {
+            if (pokemon.isActive === true) {
+                otherActive = true;
+                break;
+            }
+            if (pokemon.pokemon._id === moveInput.switchPokemonId) {
+                switchIn = pokemon;
+                break;
+            }
+        }
+
+        if (!switchIn || otherActive) {
+            throw new Error("invalid move");
+        }
+        switchIn.isActive = true;
+
+        correspondingTeam.freeSwitch = false;
+
+
+    }
+
+
+    mapPokemonToMoveInputs(moveInput: MoveInput, team: BattleTeam) {
+        moveInput.userPokemon = team.pokemonInBattle.find(x => x.pokemon._id === moveInput.userPokemonId);
+        if (!moveInput.userId) {
+            throw new Error("invalid pokemon");
         }
 
 
+    }
+
+    setPlayerMoves(moveInput: MoveInput, battleObj: BattleObj) {
+
+        const playerTeam = battleObj.battle.teams.find((x) => x.userId === moveInput.userId);
+        if (!playerTeam) {
+            throw new Error("this player isn't in this game");
+        }
+
+        // add the actual pokemon object to the move input so that we can access it later
+        this.mapPokemonToMoveInputs(moveInput, playerTeam);
+
+        battleObj.playerMoves.push(moveInput);
+
+
+
 
     }
 
-    handleFreeSwitch(battleObj: BattleObj, switchResult: switchResult) {
-
-
-
-    }
 
 
 
 
-    publishBattleUpdate(battleObj: BattleObj, switchResult: switchResult, playerOneMovedFirst: boolean, playerOneMoveUsed: Move | null, playerTwoMoveUsed: Move | null, playerOneLoss: boolean, playerTwoLoss: boolean, turnNumber: number) {
-        const battleUpdate = new BattleUpdate()
-        battleUpdate.battleId = battleObj.battle.id
-        battleUpdate.playerOneChangedPokemon = new BattleTeam()
-
-        battleUpdate.playerOneChangedPokemon.pokemonInBattle = [switchResult.playerOneActivePokemon, ...switchResult.otherChangedPokemonPlayerOne]
-        battleUpdate.playerTwoChangedPokemon = new BattleTeam()
-
-        battleUpdate.playerTwoChangedPokemon.pokemonInBattle = [switchResult.playerTwoActivePokemon, ...switchResult.otherChangedPokemonPlayerTwo]
-        battleUpdate.environment = battleObj.battle.environment
-        battleUpdate.playerOneMovedFirst = playerOneMovedFirst
-        battleUpdate.playerOneFreeSwitch = switchResult.playerOneSwitched
-        battleUpdate.playerTwoFreeSwitch = switchResult.playerTwoSwitched
-        battleUpdate.playerOneMoveUsed = playerOneMoveUsed
-        battleUpdate.playerTwoMoveUsed = playerTwoMoveUsed
-        battleUpdate.playerOneLoss = playerOneLoss
-        battleUpdate.playerTwoLoss = playerTwoLoss
-        
-        battleUpdate.turnNumber = turnNumber + 1
 
 
-        pubsub.publish(Topic.BATTLE_UPDATE, battleUpdate)
-    }
 
-    calculateDamage(move: Move, attacker: PokemonInBattle, defender: PokemonInBattle) {
+    // add implementation for considering environment later. Return if it crit, effectivess and damage in that order
+    calculateDamage(move: Move, attacker: PokemonInBattle, defender: PokemonInBattle, environment: Environment): AttackResult {
         if (!move || !move.accuracy) {
-            return 0
+            return {
+                damage: 0,
+                missed: true,
+                criticalHit: false,
+                typeEffectiveness: 1
+            }
+        }
+
+        const missedChange = (100 - move.accuracy) / 100;
+
+        const missed = Math.random() < missedChange;
+
+        if (missed) {
+            return {
+                damage: 0,
+                missed,
+                criticalHit: false,
+                typeEffectiveness: 1
+            }
         }
 
 
-        const criticalHit = Math.random() < 0.0625
-
-        const missedChange = (100 - move.accuracy) / 100
-
-        const missed = Math.random() < missedChange
+        const criticalHit = Math.random() < 0.0625;
 
 
-        const getEffectiveness = this.getTypeEffectiveness(move.type as PokemonType, defender.pokemon.pokemonSpecies as PokemonSpecies)
+        const getEffectiveness = this.getTypeEffectiveness(move.type as PokemonType, defender.pokemon.pokemonSpecies as PokemonSpecies);
 
         const attackerAttack = attacker.pokemon.stats?.attack || 0;
         const defenderDefense = defender.pokemon.stats?.defense || 1;
         const damage = (move.basePower || 0) * attackerAttack / defenderDefense * getEffectiveness;
 
-        if (criticalHit) {
-            return damage * 2
-        }
 
-        if (missed) {
-            return 0
-        }
 
-        return damage;
+        return {
+            damage,
+            missed,
+            criticalHit,
+            typeEffectiveness: getEffectiveness
+
+        };
     }
 
 
@@ -550,42 +384,135 @@ export class BattleService {
     }
 
 
-    // returns true if player one moves first, false if player two moves first
+    // returns true if player one moves first, false if player two moves first(comapator, leave moves and env to account for priority moves, trick room, weather, etc)
 
-    async decideWhoMovesFirst(playerOneActivePokemon: PokemonInBattle, playerTwoActivePokemon: PokemonInBattle, playerOneUsedMoved: Move, playerTwoUsedMoved: Move) {
-        if (!playerTwoUsedMoved) {
-            return true
-        }
+    decideWhoMovesFirst(moveInput1: MoveInput, moveInput2: MoveInput, environment: Environment) {
 
-        if (!playerOneUsedMoved) {
-            return false
-        }
+        const activePokemon1 = moveInput1.userPokemon;
+        const activePokemon2 = moveInput2.userPokemon;
 
-        if (!playerTwoActivePokemon.pokemon.stats?.speed || !playerOneActivePokemon.pokemon.stats?.speed) {
-            throw new Error("Speed not found")
+        const speed1 = activePokemon1?.pokemon.stats?.speed ?? 0;
+        const speed2 = activePokemon2?.pokemon.stats?.speed ?? 0;
+
+        // deal with speed tie
+        if (speed1 === speed2) {
+            return Math.random() > 0.5 ? 1 : -1;
         }
+        return speed2 - speed1;
+    }
 
 
-        /*
-                if(playerOneUsedMoved.priority > playerTwoUsedMoved.priority) {
-                    return true
-                } else {
-                    return false
-                }*/
-        if (playerTwoActivePokemon?.pokemon?.stats?.speed > playerOneActivePokemon?.pokemon?.stats?.speed) {
-            return false;
-        }
-        else if (playerTwoActivePokemon?.pokemon?.stats?.speed < playerOneActivePokemon?.pokemon?.stats?.speed) {
-            return false;
-        }
-        else {
-            const random = Math.random()
-            if (random < 0.5) {
-                return true;
-            } else {
-                return false;
+    async handleSwitch(battleObj: BattleObj) {
+
+        const moves = battleObj.playerMoves;
+
+        // add new events as needed to battle obj
+
+        const switchMoves = moves.filter((x => !x.isMove));
+
+        // only 2 teams(single battles) or 4(multi battles), so loop in loop is fine( alternatively make hashmap mapping ids to indexes)
+        switchMoves.forEach((switchMove) => {
+
+            const team = battleObj.battle.teams.find((x => x.userId === switchMove.userId));
+            if (!team) {
+                throw new Error("error");
             }
+            this.createSwitchEvents(switchMove, battleObj, team);
+
         }
+
+        );
+
+
+    }
+
+    createSwitchEvents(switchMove: MoveInput, battleObj: BattleObj, battleTeam: BattleTeam) {
+        const switchOut = new BattleTurnEvent();
+        const pokemonOut = battleTeam.pokemonInBattle.find(x => x.pokemon._id === switchMove.userPokemonId);
+        if (!pokemonOut) {
+            throw new Error("can't switch this pokemon");
+        }
+        switchOut.pokemon = pokemonOut;
+        pokemonOut.isActive = false;
+        switchOut.type = BattleEventType.Switch_Out;
+
+        let species = switchOut.pokemon?.pokemon.pokemonSpecies as PokemonSpecies
+        switchOut.message = `${species.name} switched out`;
+
+        const switchIn = new BattleTurnEvent();
+        const pokemonIn = battleTeam.pokemonInBattle.find(x => x.pokemon._id === switchMove.switchPokemonId);
+        if (!pokemonIn) {
+            throw new Error("can't switch this pokemon");
+        }
+        pokemonIn.isActive = true;
+        switchIn.pokemon = pokemonIn;
+
+        switchIn.type = BattleEventType.Switch_In;
+
+        switchIn.message = `${species.name} switched in`;
+
+        battleObj.battle.events.push(switchIn, switchOut);
+
+
+
+    }
+
+    handleMove(battleObj: BattleObj, playerMove: MoveInput) {
+
+        if (!playerMove.isMove) {
+            return;
+        }
+
+        const playerTeam = battleObj.battle.teams.find(team => team.userId === playerMove.userId);
+
+
+
+
+        const enemyTeam = battleObj.battle.teams.filter(x => x.userId !== playerMove.userId);
+        if (!playerTeam || enemyTeam.length === 0) {
+            throw new Error("user team or enemy team doesn't exist");
+        }
+
+        this.createMoveEvents(playerMove, playerTeam, enemyTeam, battleObj.battle.events, battleObj.battle.environment);
+
+
+
+
+
+
+
+    }
+    // for possible implementation of multi-battles, assume there can be multiple enemy teams(might also be moves that depend on the player team so leave it here)
+
+    async createMoveEvents(moveInput: MoveInput, playerTeam: BattleTeam, enemyTeams: BattleTeam[], movesSoFar: BattleTurnEvent[], environment: Environment) {
+        const movingPokemon = moveInput.userPokemon;
+        const move = movingPokemon?.pokemon.moves?.find(x => x._id === moveInput.moveId) as Move;
+        if (!movingPokemon || !move) {
+            throw new Error("This is not a valid");
+        }
+        // if the pokemon got knocked in the previous move, don't run their move
+        if (movingPokemon.status?.primary === PrimaryStatus.Faint) {
+            return;
+        }
+        // this probably needs to change for moves that hit multiple targets with no set target
+        const allTargetedPokemon = this.getAllTargetPokemon(move, enemyTeams, moveInput.targetPokemonId ?? "");
+
+
+        // deal with attacking moves
+        if (move.category === MoveCategory.PHYSICAL || move.category === MoveCategory.SPECIAL) {
+            const moveUsedEvent = new BattleTurnEvent();
+            moveUsedEvent.type = BattleEventType.Damage;
+            moveUsedEvent.moveUsed = move;
+            moveUsedEvent.pokemon = movingPokemon;
+            moveUsedEvent.message = `${movingPokemon?.pokemon.pokemonSpecies} used ${move.name}`;
+            movesSoFar.push(moveUsedEvent);
+
+
+            this.attackPokemon(move, movingPokemon, allTargetedPokemon, movesSoFar, environment, enemyTeams);
+        }
+
+        // implement status moves later
+
 
 
 
@@ -593,145 +520,168 @@ export class BattleService {
 
     }
 
-
-    async handleSwitch(moveInput1: MoveInput, moveInput2: MoveInput, battleObj: BattleObj): Promise<switchResult> {
-
-
-        // return active pokemon and switched out pokemon if it exists, therefore we return an array of two pokemon
-
-        const team1 = battleObj.battle.team1;
-        const team2 = battleObj.battle.team2;
-
-        let player1CurrentPokemon = team1.pokemonInBattle.find(p => p.pokemon?._id?.toString() === moveInput1.pokemonId)
+    // this probably needs to change for moves that hit multiple targets with no set target, split into function because this could get complicated
+    getAllTargetPokemon(move: Move, enemyTeams: BattleTeam[], targetPokemonId: string): PokemonInBattle[] {
+        const allTargetedPokemon: PokemonInBattle[] = [];
 
 
-        const player1CurrentPokemonSpeed = player1CurrentPokemon?.pokemon.stats?.speed
-        let player2CurrentPokemon = team2.pokemonInBattle.find(p => p.pokemon?._id?.toString() === moveInput2.pokemonId)
-
-        const player2CurrentPokemonSpeed = player2CurrentPokemon?.pokemon.stats?.speed
-
-
-
-        if (!player1CurrentPokemon || !player2CurrentPokemon) {
-            throw new Error("Pokemon not found")
+        if (targetPokemonId) {
+            enemyTeams.forEach((team => {
+                const targetedPokemon = team.pokemonInBattle.find((x => x.pokemon._id === targetPokemonId));
+                if (targetedPokemon) {
+                    allTargetedPokemon.push(targetedPokemon);
+                }
+            }));
         }
 
-        // switch out current pokemon player team
-
-        if (!moveInput1.isMove) {
-
-            // switch out current pokemon player team
-            player1CurrentPokemon.isActive = false
-            player1CurrentPokemon = team1.pokemonInBattle.find(p => p.pokemon._id?.toString() === moveInput1.switchPokemonId)
-            if (!player1CurrentPokemon) {
-                throw new Error("Pokemon not found")
-            }
-            player1CurrentPokemon.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-
-            // handle other switch in effects here
-        }
-
-        if (!moveInput2.isMove) {
-
-            // switch out current pokemon enemy team
-            player2CurrentPokemon.isActive = false
-            player2CurrentPokemon = team2.pokemonInBattle.find(p => p.pokemon._id?.toString() === moveInput2.switchPokemonId)
-            if (!player2CurrentPokemon) {
-                throw new Error("Pokemon not found")
-            }
-            player2CurrentPokemon.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-        }
-
-        let playerOneMovedFirst = false
-
-        if (player1CurrentPokemonSpeed && player2CurrentPokemonSpeed && player1CurrentPokemonSpeed > player2CurrentPokemonSpeed) {
-            playerOneMovedFirst = true
-        } else {
-            playerOneMovedFirst = false
-        }
-
-        const otherChangedPokemonPlayerOne: PokemonInBattle[] = []
-        const otherChangedPokemonPlayerTwo: PokemonInBattle[] = []
-
-        return {
-            playerOneMovedFirst, playerOneActivePokemon: player1CurrentPokemon
-            , playerTwoActivePokemon: player2CurrentPokemon, otherChangedPokemonPlayerOne, otherChangedPokemonPlayerTwo,
-            playerOneSwitched: !moveInput1.isMove, playerTwoSwitched: !moveInput2.isMove
-        }
+        return allTargetedPokemon;
 
     }
+
+    attackPokemon(move: Move, attackingPokemon: PokemonInBattle, allTargetPokemon: PokemonInBattle[], movesSoFar: BattleTurnEvent[], environment: Environment, enemyTeams: BattleTeam[]) {
+
+        allTargetPokemon.forEach((targetPokemon) => {
+            const result = this.calculateDamage(move, attackingPokemon, targetPokemon, environment);
+            targetPokemon.remainingHealth = Math.max(targetPokemon.remainingHealth - result.damage, 0);
+            if (result.missed) {
+                const missedMessage = new BattleTurnEvent();
+                missedMessage.type = BattleEventType.Missed;
+                missedMessage.message = `${attackingPokemon.pokemon.pokemonSpecies} missed!`;
+                movesSoFar.push(missedMessage);
+
+            }
+            else {
+                // need to implement status changes that could happen like paralysis after move is used etc
+                if (targetPokemon.remainingHealth === 0) {
+                    targetPokemon.status.primary = PrimaryStatus.Faint;
+                    const faintMessage = new BattleTurnEvent();
+                    faintMessage.type = BattleEventType.Faint;
+                    faintMessage.message = `${targetPokemon.pokemon.pokemonSpecies} fainted!`;
+                    faintMessage.pokemon = targetPokemon;
+                    movesSoFar.push(faintMessage);
+                    //give the free switch to that player who's pokemon got knocked out
+                    const team = enemyTeams.find((team) => team.pokemonInBattle.some(p => p.pokemon._id === targetPokemon.pokemon._id));
+
+                    team!.freeSwitch = true;
+
+                }
+                if (result.criticalHit) {
+                    const critMessage = new BattleTurnEvent();
+                    critMessage.type = BattleEventType.Crit;
+                    critMessage.message = `It was a critical hit!`;
+                    critMessage.pokemon = targetPokemon;
+                }
+                const effectiveMessage = new BattleTurnEvent();
+                effectiveMessage.pokemon = targetPokemon;
+                if (result.typeEffectiveness >= 2) {
+
+                    effectiveMessage.type = BattleEventType.Super_Effective;
+                    effectiveMessage.message = `It was super effective!`;
+                }
+
+                if (result.typeEffectiveness > 0 && result.typeEffectiveness <= 0.5) {
+
+                    effectiveMessage.type = BattleEventType.Ineffective;
+                    effectiveMessage.message = `It not very effective...`;
+
+                }
+
+                if (result.typeEffectiveness === 0) {
+
+                    effectiveMessage.type = BattleEventType.Immune;
+                    effectiveMessage.message = `Had no effect`;
+
+                }
+
+                if (effectiveMessage.message) {
+                    movesSoFar.push(effectiveMessage);
+                }
+
+
+            }
+
+
+
+        });
+
+    }
+
 
     async newBattle() {
 
 
 
-        const team1 = await getTeamWithAllPokemonInfo("67b6a6d11eaed2e8f708c361")
+        const team1 = await getTeamWithAllPokemonInfo("67b6a6d11eaed2e8f708c361");
 
-        const team2 = await getTeamWithAllPokemonInfo("67b6a83a1760cc59c36f1a94")
+        const team2 = await getTeamWithAllPokemonInfo("67b6a83a1760cc59c36f1a94");
 
-        const teams = [team1, team2]
+        const teams = [team1, team2];
 
 
-        const pokemonInBattleArr: PokemonInBattle[][] = [[], []]
+        const pokemonInBattleArr: PokemonInBattle[][] = [[], []];
 
         for (let i = 0; i < teams.length; i++) {
-            const team = teams[i]
-            const pokeArr = pokemonInBattleArr[i]
+            const team = teams[i];
+            const pokeArr = pokemonInBattleArr[i];
 
             if (team && team.pokemon) {
                 for (const pokemon of team.pokemon) {
-                    const newPokemonInBattle = new PokemonInBattle()
+                    const newPokemonInBattle = new PokemonInBattle();
 
-                    newPokemonInBattle.pokemon = pokemon
-                    newPokemonInBattle.isActive = false
+                    newPokemonInBattle.pokemon = pokemon;
+                    newPokemonInBattle.isActive = false;
 
-                    newPokemonInBattle.remainingHealth = pokemon.stats?.hp || 0
-                    newPokemonInBattle.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 }
-                    newPokemonInBattle.status = { primary: PrimaryStatus.None, confused: false }
+                    newPokemonInBattle.remainingHealth = pokemon.stats?.hp || 0;
+                    newPokemonInBattle.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 };
+                    newPokemonInBattle.status = { primary: PrimaryStatus.None, confused: false };
 
-                    pokeArr.push(newPokemonInBattle)
+                    pokeArr.push(newPokemonInBattle);
 
 
                 }
-                pokeArr[0].isActive = true
+                pokeArr[0].isActive = true;
             }
 
         }
 
-        const environment: Environment = {}
+        const environment: Environment = {};
 
-        const battle = new Battle()
-        battle.environment = environment
-        battle.team1 = { pokemonInBattle: pokemonInBattleArr[0], totalPokemon: 6, }
-        battle.team2 = { pokemonInBattle: pokemonInBattleArr[1], totalPokemon: 6, }
-        battle.team1FreeSwitch = false
-        battle.team2FreeSwitch = false
-        battle.id = "1"
-        battle.player1Info = new PlayerInfo()
-        battle.player1Info.id = '67abe4c8201f9cd643c552bf'
-        battle.player1Info.playerName = "reona"
-        battle.player1Info.playerAvatarURL = ""
-        battle.player2Info = new PlayerInfo()
-        battle.player2Info.id = '67b957d50ca31da275063b3b'
-        battle.player2Info.playerName = "rie"
-        battle.player2Info.playerAvatarURL = ""
-        battle.turnNumber = 0
-        this.battleMap.set("1", { battle: battle, player1Move: null, player2Move: null })
-
-        const playerBattle = new PlayerBattle()
-        playerBattle.id = battle.id
-        playerBattle.playerInfo = battle.player1Info
-        playerBattle.enemyInfo = battle.player2Info
-        playerBattle.playerTeam = battle.team1
-        playerBattle.enemyTeam = battle.team2
-        playerBattle.environment = battle.environment
-        playerBattle.turnNumber = 0
-        playerBattle.playerSwitch = false
-        playerBattle.enemySwitch = false
+        const battle = new Battle();
+        battle.environment = environment;
 
 
+        battle.id = "1";
+        const player1 = new PlayerInfo();
+        player1.id = '67abe4c8201f9cd643c552bf';
+        player1.playerName = "reona";
+        player1.playerAvatarURL = "";
 
-        return playerBattle
+        const player2 = new PlayerInfo();
+        player2.id = '67b957d50ca31da275063b3b';
+        player2.playerName = "rie";
+        player2.playerAvatarURL = "";
+
+
+        battle.teams = [{ pokemonInBattle: pokemonInBattleArr[0], totalPokemon: 6, userId: '67abe4c8201f9cd643c552bf', playerInfo: player1, freeSwitch: false }, { pokemonInBattle: pokemonInBattleArr[1], totalPokemon: 6, userId: '67b957d50ca31da275063b3b', playerInfo: player2, freeSwitch: false }];
+
+
+        battle.turnNumber = 0;
+        this.battleMap.set("1", { battle: battle, playerMoves: [] });
+
+        const playerBattle = new PlayerBattle();
+        playerBattle.id = battle.id;
+        playerBattle.playerInfo = player1;
+        playerBattle.enemyInfo = player2;
+        playerBattle.playerTeam = battle.teams[0];
+        playerBattle.enemyTeam = battle.teams[1];
+        playerBattle.environment = battle.environment;
+        playerBattle.turnNumber = 0;
+        playerBattle.playerSwitch = false;
+        playerBattle.enemySwitch = false;
+
+
+
+        return playerBattle;
 
 
     }

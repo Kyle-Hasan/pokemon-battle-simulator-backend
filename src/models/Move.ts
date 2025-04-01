@@ -1,9 +1,21 @@
 import { getModelForClass, prop } from '@typegoose/typegoose';
 import { PP } from './PP';
-import { Field, ID, Int, ObjectType } from 'type-graphql';
+import { Field, ID, Int, ObjectType, registerEnumType } from 'type-graphql';
 import { Types } from 'mongoose';
 import { PokemonType } from '../enums/PokemonType';
+ 
 
+export enum MoveCategory {
+  STATUS = 'status',
+  SPECIAL = 'special',
+  PHYSICAL = 'physical'
+}
+
+
+
+registerEnumType(MoveCategory, {
+  name: "MoveCategory",
+});
 
 @ObjectType()
 export class Move {
@@ -36,9 +48,9 @@ export class Move {
   public accuracy?: number | null;
 
 
-  @Field(()=> String, {nullable:false})
+  @Field(()=> MoveCategory, {nullable:false})
   @prop()
-  public category?: string;
+  public category?: MoveCategory;
 
   @Field(() => Int)
   @prop()

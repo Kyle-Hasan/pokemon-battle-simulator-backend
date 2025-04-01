@@ -1,4 +1,9 @@
-import { Field, ID, InputType } from "type-graphql";
+import { Field, ID, InputType} from "type-graphql";
+import { PokemonInBattle } from "./PokemonInBattle";
+
+
+
+ 
 
 @InputType()
 export class MoveInput {
@@ -6,10 +11,17 @@ export class MoveInput {
   battleId!: string;
 
   @Field(() => ID)
-  userId!: string;
+  teamId!: string;
 
-  @Field(() => ID, { nullable: true })
-  pokemonId?: string;
+  @Field(() => ID )
+  userPokemonId!: string;
+
+  // set after receiving
+  userPokemon?:PokemonInBattle;
+
+
+  @Field(()=> ID, {nullable:true})
+  targetPokemonId?:string;
 
   @Field()
   isMove!: boolean;
@@ -19,4 +31,7 @@ export class MoveInput {
 
   @Field(() => ID, { nullable: true })
   switchPokemonId?: string;
+
+  @Field(() => ID, { nullable: true })
+  userId?: string;
 }

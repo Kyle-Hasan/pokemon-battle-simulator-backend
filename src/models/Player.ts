@@ -6,10 +6,12 @@ export class PlayerInfo {
   id!: string;
 
   @Field(()=> String)
-  playerName!:string
+  playerName!:string;
 
   @Field(()=> String)
-  playerAvatarURL!:string
+  playerAvatarURL!:string;
+
+
 
   
 
