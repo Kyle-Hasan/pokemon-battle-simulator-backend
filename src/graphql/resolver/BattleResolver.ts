@@ -8,6 +8,7 @@ import { Environment } from "../../models/Environment";
 import { Pokemon } from "../../models/Pokemon";
 import { MoveInput } from "../../models/MoveInput";
 import { PlayerBattle } from "../../models/PlayerBattle";
+import { BattleTurnEvent } from "../../models/BattleTurnEvent";
 
 
 
@@ -53,9 +54,9 @@ export class BattleResolver {
     }
   })
   battleUpdate(
-    @Root() payload: BattleUpdate,
+    @Root() payload: BattleTurnEvent[],
     @Arg("battleId") battleId: string
-  ): BattleUpdatePlayer | void {
+  ): BattleTurnEvent[] | void {
 
    
 
@@ -65,24 +66,10 @@ export class BattleResolver {
     }
 
 
-    const battleUpdatePlayer = new BattleUpdatePlayer()
-    battleUpdatePlayer.battleId = payload.battleId
-    battleUpdatePlayer.changedPlayerPokemon = payload.playerOneChangedPokemon.pokemonInBattle
-    battleUpdatePlayer.changedEnemyPokemon = payload.playerTwoChangedPokemon.pokemonInBattle
-    battleUpdatePlayer.environment = payload.environment
-    battleUpdatePlayer.movedFirst = payload.playerOneMovedFirst
-    battleUpdatePlayer.playerFreeSwitch = payload.playerOneFreeSwitch
-    battleUpdatePlayer.enemyFreeSwitch = payload.playerTwoFreeSwitch
-    battleUpdatePlayer.playerDamage = payload.playerOneDamage
-    battleUpdatePlayer.enemyDamage = payload.playerTwoDamage
-    battleUpdatePlayer.playerMoveUsed = payload.playerOneMoveUsed
-    battleUpdatePlayer.enemyMoveUsed = payload.playerTwoMoveUsed
-    battleUpdatePlayer.playerLost = payload.playerOneLoss ?? null
-    battleUpdatePlayer.enemyLost = payload.playerTwoLoss ?? null
-    battleUpdatePlayer.turnNumber = payload.turnNumber;
+    
     
 
-    return battleUpdatePlayer
+    return payload;
   }
 
 }
