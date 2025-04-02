@@ -21,6 +21,5 @@ export class BattleUpdatePlayer {
   events!: BattleTurnEvent[];
 
  
-  @Field(() => Int)
-  turnNumber!: number;
+  
 }

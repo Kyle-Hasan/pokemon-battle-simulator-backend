@@ -34,10 +34,16 @@ type Move {
   type: String!
   basePower: String!
   accuracy: Int
-  category: String!
+  category: MoveCategory!
   contact: Int!
   pp: PP!
   animation: String!
+}
+
+enum MoveCategory {
+  STATUS
+  SPECIAL
+  PHYSICAL
 }
 
 type PP {
@@ -91,7 +97,6 @@ input AddPokemonInput {
 input AddTeamInput {
   _id: String
   name: String
-  pokemon: [AddPokemonInput!]
 }
 
 type PlayerBattle {
@@ -107,13 +112,16 @@ type PlayerBattle {
 }
 
 type BattleTeam {
+  id: ID!
   pokemonInBattle: [PokemonInBattle!]!
-  totalPokemon: Float!
+  playerInfo: PlayerInfo!
+  freeSwitch: Boolean!
+  numTotalPokemon: Int!
 }
 
 type PokemonInBattle {
   pokemon: Pokemon!
-  status: Status
+  status: Status!
   remainingHealth: Float!
   isActive: Boolean!
   statStages: Stats!
@@ -133,6 +141,11 @@ enum PrimaryStatus {
   Burn
   Faint
   None
+}
+
+type PlayerInfo {
+  playerName: String!
+  playerAvatarURL: String!
 }
 
 type Environment {
@@ -168,18 +181,15 @@ type FieldEffects {
   safeguard: Int!
 }
 
-type PlayerInfo {
-  playerName: String!
-  playerAvatarURL: String!
-}
-
 input MoveInput {
   battleId: ID!
-  userId: ID!
-  pokemonId: ID
+  teamId: ID!
+  userPokemonId: ID!
+  targetPokemonId: ID
   isMove: Boolean!
   moveId: ID
   switchPokemonId: ID
+  userId: ID
 }
 
 type Subscription {
@@ -188,17 +198,39 @@ type Subscription {
 
 type BattleUpdatePlayer {
   battleId: String!
-  changedPlayerPokemon: [PokemonInBattle!]!
-  changedEnemyPokemon: [PokemonInBattle!]!
-  environment: Environment!
-  movedFirst: Boolean!
-  playerFreeSwitch: Boolean!
-  enemyFreeSwitch: Boolean!
-  playerDamage: Float
-  enemyDamage: Float
-  playerMoveUsed: Move
-  enemyMoveUsed: Move
-  playerLost: Boolean
-  enemyLost: Boolean
-  turnNumber: Float!
+  events: [BattleTurnEvent!]!
+}
+
+type BattleTurnEvent {
+  type: BattleEventType!
+  message: String
+  damage: Float
+  crit: Boolean
+  superEffective: Boolean
+  pokemonId: String!
+  leavingPokemonId: String
+  enteringPokemon: PokemonInBattle
+  moveUsed: Move
+  environment: Environment
+  userId: String!
+}
+
+enum BattleEventType {
+  Move
+  Damage
+  Status
+  Environment
+  Switch_In
+  Switch_Out
+  Faint
+  Crit
+  Super_Effective
+  Tailwind
+  Trick_Room
+  Missed
+  Evaded
+  Ineffective
+  Immune
+  Win
+  Attack
 }

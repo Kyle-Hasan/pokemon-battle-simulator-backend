@@ -1,7 +1,7 @@
 import { mongo, Types } from "mongoose";
 import { pubsub, Topic } from "../graphql/resolver/pubsub";
 import { Battle } from "../models/Battle";
-import { BattleUpdate, BattleUpdatePlayer } from "../models/BattleUpdatePlayer";
+import { BattleUpdatePlayer } from "../models/BattleUpdatePlayer";
 import { Environment } from "../models/Environment";
 import { Move, MoveCategory, MoveModel } from "../models/Move";
 import { MoveInput } from "../models/MoveInput";
@@ -204,7 +204,7 @@ export class BattleService {
         // free switches
         const freeSwitchAvaliable = battleObj.battle.teams.filter(x => x.freeSwitch);
 
-        const eventsThisTurn = [];
+        const eventsThisTurn:BattleTurnEvent[] = [];
         if (freeSwitchAvaliable.length > 0 && battleObj.playerMoves.length === freeSwitchAvaliable.length) {
 
             const correspondingTeam = freeSwitchAvaliable.find((x) => x.userId === moveInput.teamId);
@@ -213,7 +213,8 @@ export class BattleService {
             }
             eventsThisTurn.push(this.handleFreeSwitch(moveInput, correspondingTeam));
 
-
+            battleObj.clearMoves();
+            this.publishEvents(eventsThisTurn,battleObj.battle.id);
         }
 
         else {
@@ -227,7 +228,7 @@ export class BattleService {
 
 
                 // add switch events and change active pokemon as needed
-                eventsThisTurn.push(this.handleSwitch(battleObj));
+                eventsThisTurn.push(...this.handleSwitch(battleObj));
 
 
                 battleObj.playerMoves.forEach((moveInput) => {
@@ -243,11 +244,16 @@ export class BattleService {
                     winEvent.userId = remainingTeams[0].userId;
                     this.battleMap.delete(moveInput.battleId);
                 }
+
+                  // clear move inputs once they are all done
+                    battleObj.clearMoves();
+                    this.publishEvents(eventsThisTurn,battleObj.battle.id);
             }
+          
         }
 
-        // clear move inputs once they are all done
-        battleObj.clearMoves();
+      
+      
 
 
     }
@@ -291,7 +297,7 @@ export class BattleService {
 
 
     mapPokemonToMoveInputs(moveInput: MoveInput, team: BattleTeam) {
-        moveInput.userPokemon = team.pokemonInBattle.find(x => x.pokemon._id === moveInput.userPokemonId);
+        moveInput.userPokemon = team.pokemonInBattle.find(x => x.pokemon._id?.toString() === moveInput.userPokemonId);
         if (!moveInput.userId) {
             throw new Error("invalid pokemon");
         }
@@ -309,12 +315,26 @@ export class BattleService {
         // add the actual pokemon object to the move input so that we can access it later
         this.mapPokemonToMoveInputs(moveInput, playerTeam);
 
-        battleObj.addPlayerMove(moveInput);
+        // check if they already sent in a move
+        const existingMoveIndex = battleObj.playerMoves.findIndex(x => x.teamId === moveInput.teamId);
+        if(existingMoveIndex === -1) {
+            battleObj.addPlayerMove(moveInput);
+        }
+
+        else {
+            battleObj.playerMoves[existingMoveIndex] = moveInput;
+        }
 
     }
 
-    publishEvents(events: BattleTurnEvent) {
-        pubsub.publish(Topic.BATTLE_UPDATE, events)
+    publishEvents(events: BattleTurnEvent[], battleId:string) {
+        
+        const update = new BattleUpdatePlayer();
+
+        update.events = events;
+        update.battleId = battleId;
+
+        pubsub.publish(Topic.BATTLE_UPDATE, update)
 
     }
 
@@ -334,6 +354,8 @@ export class BattleService {
         }
 
         const missedChange = (100 - move.accuracy) / 100;
+
+        const random1 = Math.random();
 
         const missed = Math.random() < missedChange;
 
@@ -446,12 +468,12 @@ export class BattleService {
         if (!pokemonOut) {
             throw new Error("can't switch this pokemon");
         }
-        switchOut.pokemon = pokemonOut;
+        switchOut.leavingPokemonId = pokemonOut.getId();
         pokemonOut.isActive = false;
         switchOut.type = BattleEventType.Switch_Out;
 
-        let species = switchOut.pokemon?.pokemon.pokemonSpecies as PokemonSpecies
-        switchOut.message = `${species.name} switched out`;
+    
+        switchOut.message = `${pokemonOut.getName()} switched out`;
 
         const switchIn = new BattleTurnEvent();
         const pokemonIn = battleTeam.pokemonInBattle.find(x => x.pokemon._id === switchMove.switchPokemonId);
@@ -459,11 +481,11 @@ export class BattleService {
             throw new Error("can't switch this pokemon");
         }
         pokemonIn.isActive = true;
-        switchIn.pokemon = pokemonIn;
+        switchIn.enteringPokemon = pokemonIn;
 
         switchIn.type = BattleEventType.Switch_In;
 
-        switchIn.message = `${species.name} switched in`;
+        switchIn.message = `${pokemonIn.getName()} switched in`;
 
         return [switchOut, switchIn];
 
@@ -495,7 +517,7 @@ export class BattleService {
 
         const enemyTeams = battleObj.battle.teams.filter((x) => x.id !== playerMove.teamId);
         const movingPokemon = playerMove.userPokemon;
-        const move = movingPokemon?.pokemon.moves?.find(x => x._id === playerMove.moveId) as Move;
+        const move = movingPokemon?.pokemon.moves?.find(x => x._id?.toString() === playerMove.moveId?.toString()) as Move;
         if (!movingPokemon || !move) {
             throw new Error("This is not a valid");
         }
@@ -510,14 +532,15 @@ export class BattleService {
         // deal with attacking moves
         if (move.category === MoveCategory.PHYSICAL || move.category === MoveCategory.SPECIAL) {
             const moveUsedEvent = new BattleTurnEvent();
-            moveUsedEvent.type = BattleEventType.Damage;
+            moveUsedEvent.type = BattleEventType.Attack;
             moveUsedEvent.moveUsed = move;
-            moveUsedEvent.pokemon = movingPokemon;
-            moveUsedEvent.message = `${movingPokemon?.pokemon.pokemonSpecies} used ${move.name}`;
+            moveUsedEvent.pokemonId = movingPokemon.pokemon._id?.toString() ?? "";
+            moveUsedEvent.message = `${movingPokemon?.getName()} used ${move.name}`;
 
+            const eventsGenerated = [moveUsedEvent];
 
-
-            return this.attackPokemon(move, movingPokemon, allTargetedPokemon, battleObj.battle.environment, enemyTeams);
+           eventsGenerated.push(...this.attackPokemon(move, movingPokemon, allTargetedPokemon, battleObj.battle.environment, enemyTeams));
+           return eventsGenerated;
         }
 
         // implement status moves later
@@ -533,7 +556,7 @@ export class BattleService {
 
         if (targetPokemonId) {
             enemyTeams.forEach((team => {
-                const targetedPokemon = team.pokemonInBattle.find((x => x.pokemon._id === targetPokemonId));
+                const targetedPokemon = team.pokemonInBattle.find((x => x.pokemon._id?.toString() === targetPokemonId));
                 if (targetedPokemon) {
                     allTargetedPokemon.push(targetedPokemon);
                 }
@@ -550,25 +573,30 @@ export class BattleService {
         const eventsGenerated: BattleTurnEvent[] = [];
         allTargetPokemon.forEach((targetPokemon) => {
             const result = this.calculateDamage(move, attackingPokemon, targetPokemon, environment);
+            const event = new BattleTurnEvent();
             targetPokemon.remainingHealth = Math.max(targetPokemon.remainingHealth - result.damage, 0);
             if (result.missed) {
-                const missedMessage = new BattleTurnEvent();
-                missedMessage.type = BattleEventType.Missed;
-                missedMessage.message = `${attackingPokemon.pokemon.pokemonSpecies} missed!`;
-                eventsGenerated.push(missedMessage);
+              
+                event.type = BattleEventType.Missed;
+                event.message = `${attackingPokemon.getName()} missed!`;
+                
 
             }
             else {
+                event.damage = result.damage;
+                event.type = BattleEventType.Damage;
+                event.pokemonId = targetPokemon.getId();
+                eventsGenerated.push(event);
                 // need to implement status changes that could happen like paralysis after move is used etc
                 if (targetPokemon.remainingHealth === 0) {
                     targetPokemon.status.primary = PrimaryStatus.Faint;
                     const faintMessage = new BattleTurnEvent();
                     faintMessage.type = BattleEventType.Faint;
-                    faintMessage.message = `${targetPokemon.pokemon.pokemonSpecies} fainted!`;
-                    faintMessage.pokemon = targetPokemon;
+                    faintMessage.message = `${targetPokemon.getName()} fainted!`;
+                    faintMessage.pokemonId = targetPokemon.getId();
                     eventsGenerated.push(faintMessage);
                     //give the free switch to that player who's pokemon got knocked out
-                    const team = enemyTeams.find((team) => team.pokemonInBattle.some(p => p.pokemon._id === targetPokemon.pokemon._id));
+                    const team = enemyTeams.find((team) => team.pokemonInBattle.some(p => p.pokemon._id?.toString() === targetPokemon.pokemon._id?.toString()));
 
                     team!.freeSwitch = true;
 
@@ -577,10 +605,11 @@ export class BattleService {
                     const critMessage = new BattleTurnEvent();
                     critMessage.type = BattleEventType.Crit;
                     critMessage.message = `It was a critical hit!`;
-                    critMessage.pokemon = targetPokemon;
+                    critMessage.pokemonId = targetPokemon.getId();
+                    eventsGenerated.push(critMessage);
                 }
                 const effectiveMessage = new BattleTurnEvent();
-                effectiveMessage.pokemon = targetPokemon;
+                effectiveMessage.pokemonId = targetPokemon.getId();
                 if (result.typeEffectiveness >= 2) {
 
                     effectiveMessage.type = BattleEventType.Super_Effective;
@@ -607,7 +636,7 @@ export class BattleService {
 
             }
 
-
+          
 
         });
 
@@ -642,7 +671,7 @@ export class BattleService {
 
                     newPokemonInBattle.remainingHealth = pokemon.stats?.hp || 0;
                     newPokemonInBattle.statStages = { hp: 1, attack: 1, defense: 1, specialDefense: 1, specialAttack: 1, speed: 1 };
-                    newPokemonInBattle.status = { primary: PrimaryStatus.None, confused: false };
+                
 
                     pokeArr.push(newPokemonInBattle);
 
@@ -668,8 +697,8 @@ export class BattleService {
         player2.playerAvatarURL = "";
 
 
-        const battleTeam1 = new BattleTeam(player1, false, '67abe4c8201f9cd643c552bf', pokemonInBattleArr[0], 6);
-        const battleTeam2 = new BattleTeam(player2, false, '67b957d50ca31da275063b3b', pokemonInBattleArr[1], 6);
+        const battleTeam1 = new BattleTeam(player1, false, '67abe4c8201f9cd643c552bf', pokemonInBattleArr[0], 6, team1?._id?.toString() ?? "");
+        const battleTeam2 = new BattleTeam(player2, false, '67b957d50ca31da275063b3b', pokemonInBattleArr[1], 6, team2._id?.toString() ?? "");
 
         const battle = new Battle([battleTeam1, battleTeam2], "1", environment);
 

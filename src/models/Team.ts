@@ -29,7 +29,7 @@ export class Team {
 
 
 @InputType()
-export class AddTeamInput implements Partial<Team>{
+export class AddTeamInput extends Team{
 
 
   @Field({nullable:true})
@@ -38,8 +38,6 @@ export class AddTeamInput implements Partial<Team>{
   @Field({nullable:true})
   public name?: string
 
-  @Field(()=>[AddPokemonInput],{nullable:true})
-  public pokemon?:AddPokemonInput[]
 
 }
 

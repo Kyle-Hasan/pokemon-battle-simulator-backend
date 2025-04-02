@@ -2,6 +2,7 @@ import { Field, ObjectType } from "type-graphql";
 import { Stats } from "./Stats";
 import { PrimaryStatus, Status } from "./Status";
 import { Pokemon } from "./Pokemon";
+import { PokemonSpecies } from "./PokemonSpecies";
 
 @ObjectType()
 export class PokemonInBattle {
@@ -55,8 +56,30 @@ export class PokemonInBattle {
         this._statStages = value;
     }
 
+    constructor(pokemon:Partial<PokemonInBattle> | null = null) {
+        if(pokemon) {
+        Object.assign(this,pokemon);
+        }
+    }
+
     isFainted() {
         return this.status.primary = PrimaryStatus.Faint;
+    }
+
+    // gets the name if its not a ref
+        getName() {
+            if(this.pokemon?.pokemonSpecies instanceof String ) {
+                return this.pokemon?.pokemonSpecies
+            }
+            else {
+                const species = this.pokemon?.pokemonSpecies as PokemonSpecies;
+                return species.name;
+            }
+        }
+
+    getId():string {
+        const id =  this.pokemon?._id?.toString() && "";
+        return id ?? "";
     }
 
    

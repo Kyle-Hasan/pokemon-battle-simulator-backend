@@ -1,5 +1,6 @@
 import { createPubSub } from "@graphql-yoga/subscription";
-import { BattleUpdate, BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
+import { BattleTurnEvent } from "../../models/BattleTurnEvent";
+import { BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
 
 
 export const enum Topic {
@@ -9,7 +10,7 @@ export const enum Topic {
 
 export const pubsub = createPubSub<
   {
-    [Topic.BATTLE_UPDATE]: [BattleUpdate];
+    [Topic.BATTLE_UPDATE]: [BattleUpdatePlayer];
    
   } 
 >();

@@ -16,12 +16,12 @@ registerEnumType(PrimaryStatus, {
 
 @ObjectType()
 export class Status {
-  @Field(() => PrimaryStatus)
-  private _primary?: PrimaryStatus | undefined;
+  @Field(() => PrimaryStatus,{name: "primary"})
+  protected _primary: PrimaryStatus = PrimaryStatus.None;
  
 
-  @Field()
-  private _confused?: boolean | undefined;
+  @Field(()=> Boolean, {name: "confused"})
+  protected _confused: boolean = false;
   
 
   constructor(primary:PrimaryStatus = PrimaryStatus.None, confused:boolean = false) {
@@ -31,17 +31,17 @@ export class Status {
 
   
 
-  public get primary(): PrimaryStatus | undefined {
+  public get primary(): PrimaryStatus {
     return this._primary;
   }
-  public set primary(value: PrimaryStatus | undefined) {
+  public set primary(value: PrimaryStatus) {
     this._primary = value;
   }
 
-  public get confused(): boolean | undefined {
+  public get confused(): boolean{
     return this._confused;
   }
-  public set confused(value: boolean | undefined) {
+  public set confused(value: boolean) {
     this._confused = value;
   }
 

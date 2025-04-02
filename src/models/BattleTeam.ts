@@ -24,12 +24,13 @@ export class BattleTeam {
   protected _numTotalPokemon:number = 0;
 
 
-  constructor(playerInfo:PlayerInfo,freeSwitch:boolean,userId:string,pokemonInBattle:PokemonInBattle[], numTotalPokemon:number) {
+  constructor(playerInfo:PlayerInfo,freeSwitch:boolean,userId:string,pokemonInBattle:PokemonInBattle[], numTotalPokemon:number, id:string) {
     this._playerInfo = playerInfo;
     this.freeSwitch = freeSwitch;
     this._userId = userId;
     this._pokemonInBattle = pokemonInBattle;
-    this._numTotalPokemon = numTotalPokemon
+    this._numTotalPokemon = numTotalPokemon;
+    this.id = id;
 
   }
 

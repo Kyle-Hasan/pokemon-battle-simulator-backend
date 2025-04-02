@@ -39,6 +39,8 @@ export class Pokemon {
     @Field(()=> Ability, {nullable:true})
     @prop({ ref: () => Move, default: null })
     public ability?: Ref<Ability> | Ability;
+
+    
   
 }
 

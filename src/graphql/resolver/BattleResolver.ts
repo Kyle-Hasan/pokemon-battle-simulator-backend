@@ -2,7 +2,7 @@ import { Arg, Ctx, Mutation, Resolver, Root, SubscribeResolverData, Subscription
 import { Battle } from "../../models/Battle";
 import { BattleService } from "../../database/BattleService";
 import { withFilter } from "graphql-subscriptions";
-import { BattleUpdate, BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
+import { BattleUpdatePlayer } from "../../models/BattleUpdatePlayer";
 import { pubsub, Topic } from "./pubsub";
 import { Environment } from "../../models/Environment";
 import { Pokemon } from "../../models/Pokemon";
@@ -54,9 +54,9 @@ export class BattleResolver {
     }
   })
   battleUpdate(
-    @Root() payload: BattleTurnEvent[],
+    @Root() payload: BattleUpdatePlayer,
     @Arg("battleId") battleId: string
-  ): BattleTurnEvent[] | void {
+  ): BattleUpdatePlayer | void {
 
    
 

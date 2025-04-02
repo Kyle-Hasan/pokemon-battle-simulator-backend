@@ -58,17 +58,16 @@ export class TeamService {
     pokemonStats.specialAttack = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.specialAttack || 0,"")
     pokemonStats.speed = calculatePokemonStat(false,100,31,0,pokemonSpecies?.baseStats.speed || 0,"")
 
-    
+    const pokemonFinal = new Pokemon();
+    pokemonFinal.pokemonSpecies = pokemon.pokemonSpecies ? pokemon.pokemonSpecies : "";
+    pokemonFinal.level = 100;
+    pokemonFinal.ability = pokemon.ability;
+    pokemonFinal.stats = pokemonStats;
+    pokemonFinal.moves = [];
 
 
-    team?.pokemon?.push({
-      nickname: pokemon.nickname,
-      level:100,
-      ability: pokemon.ability,
-      pokemonSpecies: pokemon.pokemonSpecies ? pokemon.pokemonSpecies : "",
-      stats:pokemonStats,
-      moves: []
-    });
+
+    team?.pokemon?.push(pokemonFinal);
 
     await team.save()
 
@@ -261,7 +260,7 @@ export class TeamService {
 
 }
 
-export async function getTeamWithAllPokemonInfo(id:string):Promise<any> {
+export async function getTeamWithAllPokemonInfo(id:string):Promise<Team> {
 
   const result = await TeamModel.aggregate([
 
@@ -296,6 +295,13 @@ export async function getTeamWithAllPokemonInfo(id:string):Promise<any> {
     },
 
     {
+      $unwind: {
+        path: "$pokemon.move",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+
+    {
       $lookup: {
         from: "pokemonspecies",
         localField: "pokemon.pokemonSpecies",
@@ -321,7 +327,7 @@ export async function getTeamWithAllPokemonInfo(id:string):Promise<any> {
   if (!result || result.length === 0) {
     throw new Error("team not found");
   }
-  return result[0]
+  return result[0] as Team;
 }
 
 
