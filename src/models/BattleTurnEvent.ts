@@ -1,26 +1,26 @@
-import { Field, ObjectType, registerEnumType } from "type-graphql";
+import { Field, Int, ObjectType, registerEnumType } from "type-graphql";
 import { PokemonInBattle } from "./PokemonInBattle";
 import { Move } from "./Move";
 import { Environment } from "./Environment";
 
 export enum BattleEventType {
-  Move = "MOVE",
-  Damage = "DAMAGE",
-  Status = "STATUS",
-  Environment = "ENVIRONMENT",
-  Switch_In = "SWITCH_OUT",
-  Switch_Out = "SWITCH_IN",
-  Faint = "FAINT",
-  Crit = "CRIT",
-  Super_Effective = "SUPER_EFFECTIVE",
-  Tailwind = "TAILWIND",
-  Trick_Room = "TRICK_ROOM",
-  Missed = "MISSED",
-  Evaded = "EVADED",
-  Ineffective = "INEFFECTIVE",
-  Immune = "IMMUNE",
-  Win = "WIN",
-  Attack = "ATTACK",
+  MOVE = "MOVE",
+  DAMAGE = "DAMAGE",
+  STATUS = "STATUS",
+  ENVIRONMENT = "ENVIRONMENT",
+  SWITCH_IN = "SWITCH_OUT",
+  SWITCH_OUT = "SWITCH_IN",
+  FAINT = "FAINT",
+  CRIT = "CRIT",
+  SUPER_EFFECTIVE = "SUPER_EFFECTIVE",
+  TAILWIND = "TAILWIND",
+  TRICK_ROOM = "TRICK_ROOM",
+  MISSED = "MISSED",
+  EVADED = "EVADED",
+  INEFFECTIVE = "INEFFECTIVE",
+  IMMUNE = "IMMUNE",
+  WIN = "WIN",
+  ATTACK = "ATTACK",
 }
 
 registerEnumType(BattleEventType, {
@@ -61,6 +61,9 @@ export class BattleTurnEvent {
 
   @Field(() => String, { name: "userId" })
   protected _userId!: string;
+
+  @Field(() => Int, { name: "turnNumber" })
+  protected _turnNumber!: number;
 
   constructor(init?: Partial<BattleTurnEvent>) {
     Object.assign(this, init);
@@ -134,6 +137,14 @@ export class BattleTurnEvent {
   }
   set environment(value: Environment | undefined) {
     this._environment = value;
+  }
+
+  get turnNumber():number {
+    return this._turnNumber;
+  }
+
+  set turnNumber(value:number) {
+    this._turnNumber = value;
   }
 
   get userId(): string {

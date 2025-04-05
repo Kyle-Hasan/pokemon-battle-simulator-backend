@@ -216,21 +216,21 @@ type BattleTurnEvent {
 }
 
 enum BattleEventType {
-  Move
-  Damage
-  Status
-  Environment
-  Switch_In
-  Switch_Out
-  Faint
-  Crit
-  Super_Effective
-  Tailwind
-  Trick_Room
-  Missed
-  Evaded
-  Ineffective
-  Immune
-  Win
-  Attack
+  MOVE
+  DAMAGE
+  STATUS
+  ENVIRONMENT
+  SWITCH_IN
+  SWITCH_OUT
+  FAINT
+  CRIT
+  SUPER_EFFECTIVE
+  TAILWIND
+  TRICK_ROOM
+  MISSED
+  EVADED
+  INEFFECTIVE
+  IMMUNE
+  WIN
+  ATTACK
 }

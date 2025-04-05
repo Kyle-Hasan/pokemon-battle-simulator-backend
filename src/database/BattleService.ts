@@ -201,6 +201,13 @@ export class BattleService {
 
         this.setPlayerMoves(moveInput, battleObj);
 
+
+        const postMove = ()=> {
+            battleObj.clearMoves();
+            this.publishEvents(eventsThisTurn,battleObj.battle.id,battleObj.battle.turnNumber);
+            battleObj.battle.turnNumber++;
+        };
+
         // free switches
         const freeSwitchAvaliable = battleObj.battle.teams.filter(x => x.freeSwitch);
 
@@ -214,7 +221,8 @@ export class BattleService {
             eventsThisTurn.push(this.handleFreeSwitch(moveInput, correspondingTeam));
 
             battleObj.clearMoves();
-            this.publishEvents(eventsThisTurn,battleObj.battle.id);
+           
+            this.publishEvents(eventsThisTurn,battleObj.battle.id,battleObj.battle.turnNumber);
         }
 
         else {
@@ -240,14 +248,12 @@ export class BattleService {
                 if (remainingTeams.length == 1) {
                     // declare winner and end battle
                     const winEvent = new BattleTurnEvent();
-                    winEvent.type = BattleEventType.Win;
+                    winEvent.type = BattleEventType.WIN;
                     winEvent.userId = remainingTeams[0].userId;
                     this.battleMap.delete(moveInput.battleId);
                 }
 
-                  // clear move inputs once they are all done
-                    battleObj.clearMoves();
-                    this.publishEvents(eventsThisTurn,battleObj.battle.id);
+                  postMove();
             }
           
         }
@@ -286,9 +292,10 @@ export class BattleService {
         correspondingTeam.freeSwitch = false;
 
         const event = new BattleTurnEvent();
-        event.type = BattleEventType.Switch_In;
+        event.type = BattleEventType.SWITCH_IN;
         event.enteringPokemon = switchIn;
         event.message = `${switchIn.pokemon.pokemonSpecies.toString()} switched in`;
+       
 
         return event;
 
@@ -327,9 +334,16 @@ export class BattleService {
 
     }
 
-    publishEvents(events: BattleTurnEvent[], battleId:string) {
+    publishEvents(events: BattleTurnEvent[], battleId:string, turnNumber:number) {
+
+
+        events = events.map((x)=> {
+            x.turnNumber = turnNumber;
+            return x
+        })
         
         const update = new BattleUpdatePlayer();
+
 
         update.events = events;
         update.battleId = battleId;
@@ -470,10 +484,11 @@ export class BattleService {
         }
         switchOut.leavingPokemonId = pokemonOut.getId();
         pokemonOut.isActive = false;
-        switchOut.type = BattleEventType.Switch_Out;
+        switchOut.type = BattleEventType.SWITCH_OUT;
 
     
         switchOut.message = `${pokemonOut.getName()} switched out`;
+        switchOut.turnNumber = battleObj.battle.turnNumber;
 
         const switchIn = new BattleTurnEvent();
         const pokemonIn = battleTeam.pokemonInBattle.find(x => x.pokemon._id === switchMove.switchPokemonId);
@@ -483,9 +498,10 @@ export class BattleService {
         pokemonIn.isActive = true;
         switchIn.enteringPokemon = pokemonIn;
 
-        switchIn.type = BattleEventType.Switch_In;
+        switchIn.type = BattleEventType.SWITCH_IN;
 
         switchIn.message = `${pokemonIn.getName()} switched in`;
+        switchOut.turnNumber = battleObj.battle.turnNumber
 
         return [switchOut, switchIn];
 
@@ -532,7 +548,7 @@ export class BattleService {
         // deal with attacking moves
         if (move.category === MoveCategory.PHYSICAL || move.category === MoveCategory.SPECIAL) {
             const moveUsedEvent = new BattleTurnEvent();
-            moveUsedEvent.type = BattleEventType.Attack;
+            moveUsedEvent.type = BattleEventType.ATTACK;
             moveUsedEvent.moveUsed = move;
             moveUsedEvent.pokemonId = movingPokemon.pokemon._id?.toString() ?? "";
             moveUsedEvent.message = `${movingPokemon?.getName()} used ${move.name}`;
@@ -577,21 +593,21 @@ export class BattleService {
             targetPokemon.remainingHealth = Math.max(targetPokemon.remainingHealth - result.damage, 0);
             if (result.missed) {
               
-                event.type = BattleEventType.Missed;
+                event.type = BattleEventType.MISSED;
                 event.message = `${attackingPokemon.getName()} missed!`;
                 
 
             }
             else {
                 event.damage = result.damage;
-                event.type = BattleEventType.Damage;
+                event.type = BattleEventType.DAMAGE;
                 event.pokemonId = targetPokemon.getId();
                 eventsGenerated.push(event);
                 // need to implement status changes that could happen like paralysis after move is used etc
                 if (targetPokemon.remainingHealth === 0) {
                     targetPokemon.status.primary = PrimaryStatus.Faint;
                     const faintMessage = new BattleTurnEvent();
-                    faintMessage.type = BattleEventType.Faint;
+                    faintMessage.type = BattleEventType.FAINT;
                     faintMessage.message = `${targetPokemon.getName()} fainted!`;
                     faintMessage.pokemonId = targetPokemon.getId();
                     eventsGenerated.push(faintMessage);
@@ -603,7 +619,7 @@ export class BattleService {
                 }
                 if (result.criticalHit) {
                     const critMessage = new BattleTurnEvent();
-                    critMessage.type = BattleEventType.Crit;
+                    critMessage.type = BattleEventType.CRIT;
                     critMessage.message = `It was a critical hit!`;
                     critMessage.pokemonId = targetPokemon.getId();
                     eventsGenerated.push(critMessage);
@@ -612,20 +628,20 @@ export class BattleService {
                 effectiveMessage.pokemonId = targetPokemon.getId();
                 if (result.typeEffectiveness >= 2) {
 
-                    effectiveMessage.type = BattleEventType.Super_Effective;
+                    effectiveMessage.type = BattleEventType.SUPER_EFFECTIVE;
                     effectiveMessage.message = `It was super effective!`;
                 }
 
                 if (result.typeEffectiveness > 0 && result.typeEffectiveness <= 0.5) {
 
-                    effectiveMessage.type = BattleEventType.Ineffective;
+                    effectiveMessage.type = BattleEventType.INEFFECTIVE;
                     effectiveMessage.message = `It not very effective...`;
 
                 }
 
                 if (result.typeEffectiveness === 0) {
 
-                    effectiveMessage.type = BattleEventType.Immune;
+                    effectiveMessage.type = BattleEventType.IMMUNE;
                     effectiveMessage.message = `Had no effect`;
 
                 }

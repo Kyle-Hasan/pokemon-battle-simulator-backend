@@ -16,7 +16,7 @@ export class Battle {
   protected _environment!: Environment;
 
   @Field(() => Number, { name: "turnNumber" })
-  protected _turnNumber: number = 0;
+  protected _turnNumber: number = 1;
 
   @Field(() => [BattleTurnEvent], { name: "events" })
   protected _events: BattleTurnEvent[] = [];
@@ -45,6 +45,10 @@ export class Battle {
 
   get turnNumber(): number {
     return this._turnNumber;
+  }
+
+  set turnNumber(value:number) {
+    this._turnNumber = value;
   }
 
   startTurn(): void {
