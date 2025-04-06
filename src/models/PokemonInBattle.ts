@@ -78,7 +78,7 @@ export class PokemonInBattle {
         }
 
     getId():string {
-        const id =  this.pokemon?._id?.toString() && "";
+        const id =  this.pokemon?._id?.toString();
         return id ?? "";
     }
 

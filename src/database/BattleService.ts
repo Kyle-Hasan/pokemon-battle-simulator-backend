@@ -337,15 +337,15 @@ export class BattleService {
     publishEvents(events: BattleTurnEvent[], battleId:string, turnNumber:number) {
 
 
-        events = events.map((x)=> {
+        const eventsAddedTurnNumber: BattleTurnEvent[] = events.map(x => {
             x.turnNumber = turnNumber;
-            return x
-        })
+            return x;
+          });
         
         const update = new BattleUpdatePlayer();
 
 
-        update.events = events;
+        update.events = eventsAddedTurnNumber;
         update.battleId = battleId;
 
         pubsub.publish(Topic.BATTLE_UPDATE, update)
@@ -550,7 +550,7 @@ export class BattleService {
             const moveUsedEvent = new BattleTurnEvent();
             moveUsedEvent.type = BattleEventType.ATTACK;
             moveUsedEvent.moveUsed = move;
-            moveUsedEvent.pokemonId = movingPokemon.pokemon._id?.toString() ?? "";
+            moveUsedEvent.pokemonId = movingPokemon.getId() ?? "";
             moveUsedEvent.message = `${movingPokemon?.getName()} used ${move.name}`;
 
             const eventsGenerated = [moveUsedEvent];

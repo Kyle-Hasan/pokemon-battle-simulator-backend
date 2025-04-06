@@ -213,6 +213,7 @@ type BattleTurnEvent {
   moveUsed: Move
   environment: Environment
   userId: String!
+  turnNumber: Int!
 }
 
 enum BattleEventType {
